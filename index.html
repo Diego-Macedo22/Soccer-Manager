@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Soccer Manager v0.3</title>
+<title>Soccer Manager v0.3.1</title>
 <style>
 :root{
   --bg:#090e1a;--panel:#111827;--panel2:#172033;--panel3:#1d2940;--line:#29364f;--text:#f4f7ff;--muted:#9aa8c2;
@@ -513,6 +513,131 @@ function updatePlayerMatchStats(cid,compId,participants,result,gf,ga,goalEvents)
 
 applyAgeFixes();
 /* ====================== END SOCCER MANAGER V0.3 PATCH ===================== */
+
+
+/* ======================== V0.3.1 STABILITY HOTFIX ======================== */
+function repairGameState(){
+  if(!state) return;
+  state.version='0.3.1';
+  state.db=state.db||buildDatabase();
+  state.db.clubs=state.db.clubs||BASE_DATA.clubs.map(c=>({...c}));
+  state.db.players=state.db.players||[];
+  state.db.players.forEach(p=>{
+    p.attrs=p.attrs||buildAttrs(p.pos||'MC',p.ovr||65,p.name||'Jogador');
+    p.positions=Array.isArray(p.positions)&&p.positions.length?p.positions:derivePositions(p);
+    p.season=p.season||{apps:0,goals:0,assists:0,ratingSum:0,ratingApps:0,cards:0};
+    p.compStats=p.compStats||{}; p.career=p.career||{apps:0,goals:0,assists:0};
+    p.fitness=clamp(Number.isFinite(+p.fitness)?+p.fitness:100,0,100);
+    p.morale=clamp(Number.isFinite(+p.morale)?+p.morale:70,0,100);
+    p.form=clamp(Number.isFinite(+p.form)?+p.form:70,0,100);
+    p.contract=Number.isFinite(+p.contract)?+p.contract:2;
+  });
+  state.customTactics=Array.isArray(state.customTactics)?state.customTactics:[];
+  state.incomingOffers=Array.isArray(state.incomingOffers)?state.incomingOffers:[];
+  state.watchlist=Array.isArray(state.watchlist)?state.watchlist:[];
+  state.precontracts=Array.isArray(state.precontracts)?state.precontracts:[];
+  state.loans=Array.isArray(state.loans)?state.loans:[];
+  state.history=Array.isArray(state.history)?state.history:[];
+  state.news=Array.isArray(state.news)?state.news:[];
+  state.transactions=Array.isArray(state.transactions)?state.transactions:[];
+  state.tacticTarget=null;
+  if(!state.formation || !getTacticSlots(state.formation)?.length) state.formation='4-2-3-1';
+  const roster=teamPlayers(state.clubId);
+  const validLineup=state.lineup && Array.isArray(state.lineup.xi) && state.lineup.xi.length===11 && state.lineup.xi.every(x=>player(x.playerId));
+  if(!validLineup || state.lineup.formation!==state.formation) state.lineup=autoLineup(state.clubId,state.formation);
+  if(!state.competitions || !Object.keys(state.competitions).length || !Array.isArray(state.fixtures) || !state.fixtures.length){
+    state.competitions={}; state.fixtures=[]; createSeasonStructure(state,true);
+  }
+  if(state.match){
+    const f=state.fixtures.find(x=>x.id===state.match.fixtureId);
+    const ok=f && Array.isArray(state.match.userXI) && state.match.userXI.length===11 && state.match.userXI.every(x=>player(x.playerId));
+    if(!ok) state.match=null;
+    else {
+      state.match.fatigue=state.match.fatigue||{};
+      state.match.comments=Array.isArray(state.match.comments)?state.match.comments:[];
+      state.match.goalEvents=Array.isArray(state.match.goalEvents)?state.match.goalEvents:[];
+      state.match.participants=Array.isArray(state.match.participants)?state.match.participants:state.match.userXI.map(x=>x.playerId);
+      state.match.userBench=Array.isArray(state.match.userBench)?state.match.userBench:state.lineup.bench.slice();
+      state.match.subbedOut=Array.isArray(state.match.subbedOut)?state.match.subbedOut:[];
+      state.match.stats=state.match.stats||{posH:50,posA:50,shotsH:0,shotsA:0,onH:0,onA:0,xgH:0,xgA:0};
+    }
+  }
+  state.wageSpent=roster.reduce((t,p)=>t+(+p.wage||0),0);
+  applyAgeFixes();
+}
+
+const _hydrate031=hydrateLoadedState;
+hydrateLoadedState=function(){
+  try{_hydrate031()}catch(e){console.warn('Migração antiga ignorada:',e)}
+  repairGameState();
+};
+
+const _boot031=boot;
+boot=function(){
+  repairGameState();
+  $('#setup').classList.add('hidden'); $('#app').classList.remove('hidden');
+  document.body.classList.toggle('light',state.theme==='light');
+  renderAll();
+  showPage('dashboard');
+  if(state.seasonSummary&&!state.offseason?.summarySeen)showSeasonSummary();
+};
+
+renderAll=function(){
+  renderTop();
+  const pages=['dashboard','squad','tactics','competitions','match','transfers','scouts','academy','calendar','finances','jobs','settings'];
+  for(const id of pages){
+    try{ renderPage(id); }
+    catch(e){
+      console.error('Falha ao renderizar '+id,e);
+      const el=$('#'+id); if(el) el.innerHTML=`<div class="page-head"><div><h1>${id}</h1><p>O estado desta tela foi reparado automaticamente.</p></div></div><div class="card"><b>Recarregue esta tela pelo menu.</b><div class="tiny muted" style="margin-top:8px">${String(e.message||e)}</div></div>`;
+    }
+  }
+};
+
+showPage=function(id){
+  repairGameState();
+  $$('.page').forEach(p=>p.classList.toggle('active',p.id===id));
+  $$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+  try{renderPage(id)}catch(e){console.error(e);repairGameState();try{renderPage(id)}catch(e2){const el=$('#'+id);if(el)el.innerHTML=`<div class="card"><h3>Erro reparável</h3><p>${String(e2.message||e2)}</p><button onclick="repairAndReload('${id}')">Reparar tela</button></div>`}}
+};
+window.repairAndReload=(id)=>{repairGameState();state.lineup=autoLineup(state.clubId,state.formation);state.match=null;save();showPage(id);toast('Estado da carreira reparado.')};
+
+// Elenco robusto: nunca depende de um jogador selecionado inválido.
+renderSquad=function(){
+  repairGameState();
+  const ps=teamPlayers(state.clubId).slice().sort((a,b)=>b.ovr-a.ovr);
+  if(!ps.length){$('#squad').innerHTML='<div class="card">Este clube está sem jogadores no banco. Inicie uma nova carreira para reconstruir a base.</div>';return}
+  let sel=ps.find(p=>p.id===state.selectedPlayer)||ps[0]; state.selectedPlayer=sel.id;
+  $('#squad').innerHTML=`<div class="page-head"><div><h1>Elenco</h1><p>${ps.length} jogadores • energia, moral, contrato e evolução</p></div><span class="tag">${state.season}</span></div><div class="split"><div class="card" style="padding:0"><div class="table-wrap" style="border:0"><table class="table"><thead><tr><th>Pos</th><th>Jogador</th><th>Posições</th><th>Idade</th><th>OVR</th><th>POT</th><th>Energia</th><th>Moral</th><th>Contrato</th></tr></thead><tbody>${ps.map(p=>`<tr class="clickable" onclick="selectPlayer('${p.id}','squad')"><td><span class="pos">${p.pos}</span></td><td><b>${p.name}</b>${p.generated?'<div class="tiny muted">Gerado / base</div>':''}</td><td>${(p.positions||[p.pos]).join(' / ')}</td><td>${p.age}</td><td class="rating ${ratingClass(p.ovr)}">${p.ovr}</td><td>${p.pot}</td><td>${energyHtml(p)}</td><td>${p.morale}%</td><td>${p.contract}a</td></tr>`).join('')}</tbody></table></div></div><div class="card player-panel" id="playerPanel">${playerDetail(sel)}</div></div>`;
+};
+
+renderTactics=function(){
+  repairGameState();
+  if(!state.lineup || state.lineup.xi.length!==11) state.lineup=autoLineup(state.clubId,state.formation);
+  const target=(Number.isInteger(state.tacticTarget)&&state.tacticTarget>=0&&state.tacticTarget<state.lineup.xi.length)?state.tacticTarget:null;
+  state.tacticTarget=target;
+  const first=state.lineup.xi[0]&&player(state.lineup.xi[0].playerId); const sel=player(state.selectedPlayer)||first;
+  const opts=tacticOptions();
+  $('#tactics').innerHTML=`<div class="page-head"><div><h1>Táticas</h1><p>Monte o XI, banco e não relacionados. Jogadores de linha podem improvisar fora da posição com perda de OVR; só goleiros podem jogar no gol.</p></div><div style="display:flex;gap:7px"><button onclick="openCustomTactic()">+ Criar tática</button><select id="formationSelect" style="width:190px">${opts.map(f=>`<option value="${f.key}" ${f.key===state.formation?'selected':''}>${f.label}</option>`).join('')}</select></div></div><div class="grid" style="grid-template-columns:minmax(0,1.1fr) minmax(330px,.9fr)"><div class="card"><div class="pitch"><div class="center-circle"></div>${state.lineup.xi.map((s,i)=>{const p=player(s.playerId);if(!p)return '';const eff=effectiveOvr(p,s.slotPos);return `<div class="slot ${target===i?'target':''}" style="left:${s.x}%;top:${s.y}%"><button onclick="targetSlot(${i});selectPlayer('${p.id}','tactics')"><div class="slot-bubble">${s.slotPos}</div><small>${p.name} • ${eff}${eff!==p.ovr?` (${eff-p.ovr>0?'+':''}${eff-p.ovr})`:''}</small></button></div>`}).join('')}</div><div class="grid grid-3" style="margin-top:10px"><div><label class="tiny muted">Pressão</label><input type="range" min="20" max="90" value="${state.pressing}" id="pressing"></div><div><label class="tiny muted">Linha defensiva</label><input type="range" min="20" max="90" value="${state.line}" id="line"></div><div><label class="tiny muted">Ritmo</label><input type="range" min="20" max="90" value="${state.tempo}" id="tempo"></div></div><div class="field" style="margin-top:10px"><label>Mentalidade</label><select id="mentalitySelect">${['Ultradefensivo','Defensivo','Equilibrado','Ofensivo','Ultraofensivo'].map(x=>`<option ${x===state.mentality?'selected':''}>${x}</option>`).join('')}</select></div></div><div class="grid"><div class="card"><h3>Reservas ${target!==null?`• slot ${state.lineup.xi[target].slotPos}`:''}</h3><div class="bench-grid">${state.lineup.bench.filter(id=>player(id)).map(id=>tacticChipV03(id,'bench',target)).join('')}</div><h3 style="margin-top:14px">Não relacionados</h3><div class="bench-grid">${state.lineup.out.filter(id=>player(id)).map(id=>tacticChipV03(id,'out',target)).join('')}</div></div><div class="card player-panel" style="position:static">${playerDetail(sel)}</div></div></div>`;
+  $('#formationSelect').onchange=e=>{state.formation=e.target.value;state.lineup=autoLineup(state.clubId,state.formation);state.tacticTarget=null;save();renderTactics()};
+  $('#mentalitySelect').onchange=e=>{state.mentality=e.target.value;save()};
+  ['pressing','line','tempo'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=e=>{state[id]=+e.target.value;save()}});
+};
+
+// Partida: repara escalação antes de abrir e evita saves antigos quebrando o motor.
+const _startMatch031=window.startMatch;
+window.startMatch=()=>{
+  repairGameState();
+  if(!state.lineup || state.lineup.xi.length!==11){state.lineup=autoLineup(state.clubId,state.formation);save()}
+  const f=nextUserFixture(); if(!f){toast('Não há partida pendente no calendário.');return}
+  try{return _startMatch031()}catch(e){console.error(e);state.match=null;state.lineup=autoLineup(state.clubId,state.formation);save();toast('A partida foi reparada. Clique em Iniciar jogo novamente.');renderMatch()}
+};
+
+// Usa uma chave própria da V0.3.1 e migra o save antigo apenas quando o usuário carregar.
+const _save031=save, _load031=load;
+save=function(){if(state)localStorage.setItem('soccerManagerV031',JSON.stringify(state))};
+load=function(){try{return JSON.parse(localStorage.getItem('soccerManagerV031'))||JSON.parse(localStorage.getItem('soccerManagerV02'))}catch(e){return null}};
+/* ====================== END V0.3.1 STABILITY HOTFIX ===================== */
 
 const saved=load();if(saved?.theme==='light')document.body.classList.add('light');
 })();
