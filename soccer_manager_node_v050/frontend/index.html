@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Soccer Manager v0.5 Node</title>
+<link rel="stylesheet" href="./css/main.css">
+</head>
+<body>
+<section id="setup">
+  <div class="setup-card">
+    <div class="setup-hero">
+      <div class="brand"><div class="brand-mark">⚽</div><span>Soccer Manager</span></div>
+      <h1 class="setup-title">Construa sua carreira.<br>Decisões importam.</h1>
+      <p class="setup-sub">Uma mistura de manager clássico com interface moderna: elenco, posições, tática, mercado, calendário, carreira e partidas 2D com decisões ao vivo.</p>
+      <div class="feature-list">
+        <div class="feature">Séries A e B de 2026 com 40 clubes jogáveis</div>
+        <div class="feature">Elencos com núcleo real atualizado + profundidade gerada</div>
+        <div class="feature">5 substituições, 3 janelas e intervalo automático</div>
+        <div class="feature">Promoção, rebaixamento, classificação continental e nova temporada</div>
+      </div>
+    </div>
+    <div class="setup-form">
+      <h2 style="margin:0 0 20px">Nova carreira</h2>
+      <div class="field"><label>Nome do técnico</label><input id="managerName" value="Diego" maxlength="30"></div>
+      <div class="field"><label>Clube</label><select id="clubSelect"></select></div>
+      <div class="check-row"><div><b>Impulso financeiro</b><div class="tiny muted">+ R$ 25 milhões no orçamento inicial</div></div><input type="checkbox" id="moneyBoost"></div>
+      <div class="check-row"><div><b>Modo realista</b><div class="tiny muted">Negociações e evolução mais exigentes</div></div><input type="checkbox" id="realistic" checked></div>
+      <div class="db-note" style="margin:12px 0">Banco V0.4: snapshot de 02/10/2026. Elencos verificados foram atualizados com prioridade para Corinthians, Flamengo e Santos; os fillers genéricos automáticos dos clubes brasileiros foram removidos. OVR, potencial, salários e alguns atributos continuam sendo parâmetros de gameplay. Jovens fictícios aparecem somente pelo sistema de base.</div>
+      <button class="primary" id="startCareer" style="width:100%;margin-top:4px">Começar carreira</button>
+      <button id="loadCareer" style="width:100%;margin-top:8px">Carregar carreira salva</button>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">⚽</div><span>Soccer Manager</span></div>
+    <nav class="nav" id="nav">
+      <button data-page="dashboard" class="active">🏠 <span class="label">Início</span></button>
+      <button data-page="squad">👥 <span class="label">Elenco</span></button>
+      <button data-page="tactics">📋 <span class="label">Táticas</span></button>
+      <button data-page="competitions">🏆 <span class="label">Competições</span></button>
+      <button data-page="match">⚽ <span class="label">Partida</span></button>
+      <div class="nav-section">Gestão</div>
+      <button data-page="transfers">💼 <span class="label">Transferências</span></button>
+      <button data-page="scouts">🔎 <span class="label">Olheiros</span></button>
+      <button data-page="academy">🌱 <span class="label">Base</span></button>
+      <button data-page="calendar">📅 <span class="label">Calendário</span></button>
+      <button data-page="finances">💰 <span class="label">Finanças</span></button>
+      <div class="nav-section">Carreira</div>
+      <button data-page="jobs">🪪 <span class="label">Vagas</span></button>
+      <button data-page="settings">⚙️ <span class="label">Configurações</span></button>
+    </nav>
+  </aside>
+  <header class="topbar">
+    <div class="top-left"><div class="club-badge" id="clubBadge">SM</div><div><b id="clubNameTop">Clube</b><div class="tiny muted" id="managerTop">Técnico</div></div></div>
+    <div class="top-stats">
+      <div class="pill">🏁 <b id="seasonTop"></b></div>
+      <div class="pill">📅 <span id="dateTop"></span></div>
+      <div class="pill">💵 <span id="budgetTop"></span></div>
+      <div class="pill">⭐ <b id="ratingTop"></b></div>
+      <button class="theme-toggle" id="themeToggle" title="Modo claro/escuro">🌙</button>
+      <button class="primary" id="advanceBtn">Continuar ▶</button>
+    </div>
+  </header>
+  <main>
+    <section id="dashboard" class="page active"></section>
+    <section id="squad" class="page"></section>
+    <section id="tactics" class="page"></section>
+    <section id="competitions" class="page"></section>
+    <section id="match" class="page"></section>
+    <section id="transfers" class="page"></section>
+    <section id="scouts" class="page"></section>
+    <section id="academy" class="page"></section>
+    <section id="calendar" class="page"></section>
+    <section id="finances" class="page"></section>
+    <section id="jobs" class="page"></section>
+    <section id="settings" class="page"></section>
+  </main>
+</div>
+<div id="modalRoot"></div><div id="toastRoot" class="toast-root"></div>
+<script src="./js/api.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>
