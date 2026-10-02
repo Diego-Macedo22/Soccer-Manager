@@ -1,61 +1,86 @@
-# Soccer Manager v0.4 — snapshot 02/10/2026
+# Soccer Manager v0.5
 
-Atualização construída sobre a v0.3.2.
+Snapshot de desenvolvimento: **02/10/2026**.
 
-## Táticas
-- Campo vertical corrigido: linha do meio horizontal, círculo central, duas áreas e dois gols.
-- Troca de jogadores por clique: selecione dois atletas e use o botão ⇄.
-- Troca por arrastar e soltar com mouse/toque entre titulares, banco e não relacionados.
-- Jogador selecionado escurece o campo e exibe zonas/posições; posições naturais/secundárias aparecem em verde.
-- É possível soltar/clicar em uma posição do campo para reposicionar um titular.
-- Alterar a formação preserva os 11 atuais e tenta encaixá-los nas zonas mais adequadas, sem refazer o time a partir do elenco inteiro.
-- Escalação permanece salva entre partidas.
+Esta versão continua sendo um protótipo web **standalone**: o jogo roda a partir do `index.html` e salva a carreira no navegador.
 
-## Banco e elencos
-- Snapshot de referência: 02/10/2026.
-- Corinthians refeito com elenco atual verificado e idades corrigidas.
-- Flamengo e Santos também receberam atualização ampliada a partir de elencos atuais consultados.
-- Fillers genéricos automáticos foram removidos dos clubes brasileiros; jogadores fictícios entram apenas pela categoria de base.
-- Correção adicional de idades conhecidas, incluindo Neymar e Thiago Silva.
-- OVR/potencial/salários continuam sendo parâmetros de gameplay e não ratings oficiais.
+## Principais mudanças da v0.5
 
-## Confiança, objetivos e menu
-- Carreira nova começa com 100% de confiança da diretoria e 100% da torcida.
-- Confiança da torcida reage às últimas partidas e à exigência/reputação do clube.
-- Confiança da diretoria usa resultados, objetivos e finanças.
-- Nova tela Objetivos.
-- Menu lateral reorganizado em Início, Gestão e Carreira, com grupos animados de abrir/fechar.
+### Evolução de jogadores e base
+- Evolução profissional recalibrada para ser mais perceptível em jogadores jovens e promissores.
+- Progresso mensal oculto baseado em idade, uso, desempenho, moral e potencial.
+- Jogadores podem ultrapassar o potencial original por desempenho excepcional; OVR máximo 99.
+- Regressão gradual para jogadores veteranos, especialmente com baixa utilização.
+- Empréstimos passam a contar como rodagem para evolução.
+- Jogadores contratados para a base também evoluem internamente, simulando participação em categorias Sub-14/Sub-16/Sub-18/Sub-21.
+- Relatórios de base continuam mensais, com limite de 45 atletas pendentes e 45 atletas contratados na base.
 
-## Estádios e finanças
-- Estádios adicionados aos clubes brasileiros e exibidos na preparação/tela da partida.
-- Bilheteria para jogos em casa calculada por capacidade, base de torcida e confiança.
-- Receita semanal de produtos/camisas ligada à confiança da torcida.
-- Folha salarial debitada mensalmente.
-- Livro-caixa detalhado na tela Finanças.
+### Gestão de elenco
+- Renovação de contrato.
+- Adicionar/remover jogador da lista de transferências.
+- Adicionar/remover jogador da lista de empréstimos.
+- Rescisão com confirmação e custo de 50% dos salários restantes do contrato.
+- Jogador rescindido passa para a lista de agentes livres.
+- Bandeiras de nacionalidade no perfil dos jogadores quando o dado está disponível no banco.
 
-## Base
-- Relatório de jovens a cada mês.
-- Até 45 jogadores aguardando decisão no relatório.
-- Até 45 jogadores contratados na base.
-- Jogadores da base podem ser promovidos ou dispensados.
+### Mercado de transferências
+- Filtros por posição e situação contratual.
+- Categorias: listado para transferência, listado para empréstimo, sem contrato e fim de contrato.
+- Negociação de compra com taxa, salário, duração e luvas.
+- Pré-contrato com salário, duração e luvas.
+- Empréstimo com duração, taxa, salário, luvas e opção de compra.
+- Contratação de agente livre sem taxa de transferência.
+- Mercado de IA mais ativo: clubes podem listar, vender, emprestar e contratar atletas.
+- Jogadores listados pelo usuário tendem a receber mais propostas.
 
-## Evolução
-- Progresso de evolução oculto e mensal.
-- Jovens evoluem mais rápido com minutos, moral e boa fase.
-- Ao alcançar o potencial, o limiar de evolução aumenta, mas ainda é possível ultrapassá-lo até OVR 99.
-- Jogadores acima de 30 anos acumulam regressão gradualmente; minutos e bom desempenho retardam a queda.
-- OVR de linha é recalculado a partir da média de Velocidade, Finalização, Passe, Drible, Marcação e Força.
-- Idade sobe uma vez no começo de cada nova temporada.
+### Dificuldade e lesões
+- Dificuldades: Fácil, Normal e Difícil.
+- A dificuldade afeta partidas e negociações sem tornar resultados absurdos por definição.
+- Opção de ativar/desativar lesões.
+- Sistema de lesões com diferentes gravidades e tempos de recuperação.
+- Jogadores lesionados ficam indisponíveis para titulares e banco.
 
-## Contratos e energia
-- Renovação pelo perfil do jogador, com 1–4 anos adicionais, salário e luvas.
-- Aceitação depende principalmente de moral e proposta salarial.
-- Cansaço passa a se acumular entre jogos; idade e físico influenciam desgaste/recuperação.
+### Partidas, energia e simulação
+- Consumo de energia durante a partida foi bastante reduzido.
+- Idade e físico influenciam o ritmo de desgaste.
+- Energia permanece acumulada entre partidas e se recupera com o passar dos dias.
+- Simulação pelo calendário faz rotação inteligente de jogadores cansados e lesionados.
+- Força, profundidade, moral, forma e energia do elenco têm peso maior na simulação.
 
-## Simulação
-- Simulação de ligas dá peso maior à qualidade do XI, profundidade do banco, reputação, moral, forma e físico, reduzindo o excesso de equilíbrio artificial.
-- Avançar calendário continua processando partidas do usuário e adversários, mantendo a próxima partida sincronizada.
+### Carreira
+- Estatísticas por temporada ficam arquivadas além das estatísticas gerais da carreira.
+- Tela de fim de temporada usa a divisão atual do clube do técnico, inclusive Série B.
+- Promoção e rebaixamento entre Série A e Série B continuam funcionando.
+- Confiança da diretoria e torcida seguem influenciadas pelos resultados e gestão.
 
-## Save
-- Nova chave de save: `soccerManagerV04`.
-- Tenta migrar automaticamente saves da v0.3.2/v0.2.
+### Novas ligas e competições
+- Premier League 2026/27 adicionada.
+- LaLiga 2026/27 adicionada.
+- CONMEBOL Sudamericana 2026 adicionada como competição consultável, com os grupos de 2026.
+- Clubes ingleses e espanhóis podem ser escolhidos no início da carreira.
+- Vagas de treinador podem incluir clubes de elite conforme o ranking do manager.
+
+## Escopo e precisão do banco
+
+O banco desta versão é um **snapshot de desenvolvimento de 02/10/2026**.
+
+- A composição dos clubes da Premier League foi montada a partir de listas públicas atuais da temporada 2026/27.
+- Os 20 clubes da LaLiga 2026/27 foram atualizados conforme a composição atual da competição; os principais elencos e jogadores receberam uma atualização mais detalhada.
+- A Sudamericana usa os grupos oficiais de 2026.
+- A lista de agentes livres foi revisada com notícias recentes do fim de setembro/início de outubro de 2026.
+- Alguns jogadores receberam correções explícitas de idade, incluindo veteranos que estavam sendo rejuvenescidos incorretamente pelo banco anterior.
+
+**Importante:** OVR, potencial, valor de mercado e salário são parâmetros de gameplay criados para o jogo. Eles não são ratings oficiais/licenciados. Nem todo jogador secundário de todas as ligas estrangeiras teve data de nascimento, nacionalidade e posição auditadas individualmente nesta build; quando faltava dado confiável, o jogo usa estimativas/fallbacks consistentes. A intenção é continuar refinando o banco por snapshots.
+
+## Limitações desta build
+
+- A base evolui internamente, mas ainda não existem campeonatos Sub-14/Sub-16/Sub-18/Sub-21 jogáveis.
+- A Sudamericana ainda não possui um motor completo de mata-mata real; esta versão prioriza grupos, visualização e qualificação.
+- Copas domésticas de Inglaterra e Espanha ainda não foram adicionadas.
+- Esta versão continua sendo um único HTML e usa armazenamento local do navegador, não um servidor MySQL.
+
+## Arquivos
+
+- `index.html` — jogo completo.
+- `README.md` — este documento.
+
