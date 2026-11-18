@@ -4,12 +4,12 @@
  * Responde cada comando com uma `View` pronta para desenhar e grava o save no
  * IndexedDB depois de cada ação (pontos de controle, nunca a cada minuto).
  */
-import { ACADEMY_LIMIT, ACADEMY_MAX_LEVEL, FORMATIONS, academyUpgradeCost, encodeSave, sortTable, totalsByKind, type Fixture } from '@sm/core';
+import { SCOUT_LIMIT, SCOUT_REGIONS, objectivesScore, scoutHireCost, type ScoutRegion, ACADEMY_LIMIT, ACADEMY_MAX_LEVEL, FORMATIONS, academyUpgradeCost, encodeSave, sortTable, totalsByKind, type Fixture } from '@sm/core';
 import type { MarketResult } from '@sm/game';
 import { loadDatabase, type Database } from '@sm/data';
 import { Game } from '@sm/game';
 import { IdbStore } from './idb-store.ts';
-import type { ClubRef, Command, FixtureView, MarketView, Reply, View } from './protocol.ts';
+import type { BoardView, ClubRef, Command, FixtureView, MarketView, Reply, View } from './protocol.ts';
 
 const SLOT = 'carreira-1';
 const db: Database = loadDatabase();
@@ -62,6 +62,22 @@ const REASON: Record<Exclude<MarketResult, { ok: true }>['reason'], string> = {
 };
 const said = (r: MarketResult, okText: string) => (r.ok ? okText : REASON[r.reason]);
 
+function boardView(g: Game): BoardView {
+  const b = g.state.board;
+  const st = g.objectiveStatuses();
+  return {
+    objectives: b.objectives.map((o, i) => ({ title: o.title, weight: o.weight, status: st[i] ?? 70 })),
+    score: objectivesScore(b.objectives, st),
+    clubConfidence: b.clubConfidence, fanConfidence: b.fanConfidence, rating: b.rating, record: b.record, recent: b.recent,
+    history: b.history.map((h) => ({ season: h.season, club: ref(h.clubId).name, position: h.position, score: h.score })).reverse(),
+    jobOffers: b.jobOffers.map((o) => ({ club: ref(o.clubId), rep: clubs.get(o.clubId)?.rep ?? 0, expires: o.expires })),
+    sacked: b.sacked,
+    scouts: b.scouts.map((sc) => ({ ...sc, mission: sc.mission ? { region: SCOUT_REGIONS[sc.mission.region], end: sc.mission.end } : null })),
+    scoutCost: scoutHireCost(b.scouts.length), scoutLimit: SCOUT_LIMIT,
+    regions: Object.entries(SCOUT_REGIONS),
+  };
+}
+
 function buildView(g: Game): View {
   const s = g.state;
   const cal = s.calendar;
@@ -109,6 +125,7 @@ function buildView(g: Game): View {
     },
     saveSize: enc.ok ? enc.size : 0,
     market: marketView(g),
+    board: boardView(g),
   };
 }
 
@@ -144,6 +161,9 @@ async function handle(cmd: Command): Promise<Reply> {
   const g = game;
   if (!g) return { type: 'error', message: 'Nenhuma carreira em andamento.' };
   let toast: string | undefined;
+  if (g.state.board.sacked && ['continue', 'advanceDays'].includes(cmd.type)) {
+    return { type: 'view', view: buildView(g), toast: 'Você foi demitido. Escolha um novo clube na aba Diretoria.' };
+  }
   switch (cmd.type) {
     case 'continue': {
       const next = g.nextUserFixture();
@@ -205,6 +225,18 @@ async function handle(cmd: Command): Promise<Reply> {
       break;
     case 'promoteYouth':
       toast = said(g.promoteYouth(cmd.id), 'Jogador promovido ao profissional.');
+      break;
+    case 'hireScout':
+      toast = g.state.board.scouts.length >= SCOUT_LIMIT ? 'Limite de olheiros atingido.' : said(g.hireScout(), 'Olheiro contratado.');
+      break;
+    case 'sendScout':
+      toast = said(g.sendScout(cmd.id, cmd.region as ScoutRegion, cmd.months), `Olheiro enviado por ${cmd.months} ${cmd.months === 1 ? 'mês' : 'meses'}.`);
+      break;
+    case 'takeJob':
+      toast = said(g.takeJob(cmd.clubId), `Bem-vindo ao ${ref(cmd.clubId).name}!`);
+      break;
+    case 'declineJob':
+      g.declineJob(cmd.clubId);
       break;
     case 'releaseYouth':
       g.releaseYouth(cmd.id);

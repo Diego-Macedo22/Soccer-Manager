@@ -745,9 +745,13 @@ npm run web:build  # apps/web/dist
 
 Portados da v0.5 com as mesmas fórmulas: chance de compra pela oferta, empréstimo por 4% do valor, propostas recebidas de 80% a 125% do valor, mercado da IA, relatório da base a cada 90 dias com OVR/POT pelo nível (1–10). Novos: contratos vencem (usuário perde o jogador, IA renova), rescisão paga metade dos salários restantes, empréstimos voltam na abertura da temporada. Save v2 (migração v1 → v2 cria o mercado). Testes em `packages/game/test/market.test.ts` com invariantes de transição em cada ação.
 
+### Diretoria e olheiros (`packages/core/src/board/`, `Game`): ✅
+
+Da v0.5: objetivos com pesos (liga 45, copa 25, finanças 20, elenco 10), confiança da diretoria (objetivos × .45 + últimos 8 jogos × .4 + caixa × .15) e da torcida, nota do técnico por resultado, exigência mínima de nota por clube, olheiros com custo crescente e relatório de 4 + nível nomes. Novos: avaliação no fim da liga com demissão (avaliação < 45 e confiança < 45) e propostas de emprego; a confiança da torcida alimenta bilheteria e produtos; troca de clube recria caixa, elenco e objetivos. Save v3. Testes em `packages/game/test/board.test.ts`.
+
 **Falta na Fase 3:**
 
-- Olheiros, pré-contrato, competições continentais e objetivos da diretoria.
+- Pré-contrato e competições continentais.
 - Partida ao vivo com narração (depende do motor da Fase 4).
 - Importar save da v0.5 pela interface.
 - PWA (manifest e service worker).

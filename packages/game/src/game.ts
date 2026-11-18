@@ -46,6 +46,20 @@ import {
   youthIntakeDue,
   youthRatings,
   type Position,
+  SCOUT_LIMIT,
+  boardObjectives,
+  createFinance,
+  jobRequirement,
+  newScout,
+  objectiveStatus,
+  objectivesScore,
+  recordOutcome,
+  scoutHireCost,
+  scoutReportSize,
+  sortTable,
+  updateConfidence,
+  type MatchOutcome,
+  type ScoutRegion,
   changeFormation,
   swapPlayers,
   type SwapResult,
@@ -84,7 +98,7 @@ function addDays(date: IsoDate, n: number): IsoDate {
 export class Game {
   readonly db: Database;
   state: CareerState;
-  private readonly finance: ReturnType<typeof createFinanceListener>;
+  private finance!: ReturnType<typeof createFinanceListener>;
   private readonly base: Map<string, Database['players'][number]>;
   /** Elencos montados a partir do estado; limpo sempre que um jogador muda (resultado idêntico, só mais rápido). */
   private squads: Map<string, SquadPlayer[]> | null = null;
@@ -93,14 +107,25 @@ export class Game {
     this.db = db;
     this.state = state;
     this.base = new Map(db.players.map((p) => [p.id, p]));
-    const economy = clubEconomy(db, state.userClubId);
-    const reps = new Map(db.clubs.map((c) => [c.id, c.rep]));
-    this.finance = createFinanceListener(state.finance, {
+    this.reps = new Map(db.clubs.map((c) => [c.id, c.rep]));
+    if (!state.board.objectives.length) state.board.objectives = boardObjectives(this.club());
+    this.bindFinance();
+  }
+
+  private readonly reps: Map<string, number>;
+
+  private bindFinance(): void {
+    const economy = clubEconomy(this.db, this.state.userClubId);
+    this.finance = createFinanceListener(this.state.finance, {
       club: () => economy,
       monthlyWages: () => Object.values(this.state.players).filter((p) => p.clubId === this.state.userClubId).reduce((s, p) => s + p.wage, 0),
-      fanConfidence: () => 70,
-      clubRep: (id) => reps.get(id) ?? 60,
+      fanConfidence: () => this.state.board.fanConfidence,
+      clubRep: (id) => this.reps.get(id) ?? 60,
     });
+  }
+
+  private club(id = this.state.userClubId) {
+    return this.db.clubs.find((c) => c.id === id)!;
   }
 
   static create(db: Database, o: NewCareerOptions): Game {
@@ -139,6 +164,7 @@ export class Game {
    * usuário (para jogar ao vivo); sem ele, o jogo do usuário é simulado.
    */
   advance(target: IsoDate, opts: { stopAtUserMatch?: boolean } = {}): { events: CalendarEvent[]; pausedAt: string | null } {
+    if (this.state.board.sacked) return { events: [], pausedAt: null };
     const r = advanceTo(this.state.calendar, target, {
       play: this.play,
       onEvent: this.onEvent,
@@ -466,6 +492,151 @@ export class Game {
     this.changed();
   }
 
+  // -------------------------------------------------------------- diretoria
+
+  private userDivision(cal = this.state.calendar): string | null {
+    const c = Object.values(cal.competitions).find((x) => x.format === 'league' && x.status === 'running' && x.participants.includes(this.state.userClubId));
+    return c ? (c.id.startsWith('brB') ? 'B' : 'A') : this.club().division;
+  }
+
+  /** Situação de cada objetivo (0–100), na ordem de `board.objectives`. */
+  objectiveStatuses(): number[] {
+    const s = this.state;
+    const cal = s.calendar;
+    const user = s.userClubId;
+    const league = Object.values(cal.competitions)
+      .filter((c) => c.format === 'league' && c.participants.includes(user))
+      .sort((a, b) => b.startYear - a.startYear)[0];
+    const table = league ? sortTable(league.table) : [];
+    const row = table.findIndex((r) => r.clubId === user);
+    const played = row >= 0 ? table[row]!.played : 0;
+    const cupWins = Object.values(cal.fixtures).filter((f) => f.result?.winnerId === user && cal.competitions[f.competitionId]?.format === 'knockout').length;
+    const squad = this.squad();
+    const avgMorale = squad.reduce((t, p) => t + p.morale, 0) / Math.max(1, squad.length);
+    const ctx = { leaguePos: played ? row + 1 : null, cupWins, balance: s.finance.balance, avgMorale };
+    return s.board.objectives.map((o) => objectiveStatus(o, ctx));
+  }
+
+  private userResult(f: Fixture): void {
+    const r = f.result!;
+    const home = f.home === this.state.userClubId;
+    const mine = home ? r.home : r.away;
+    const theirs = home ? r.away : r.home;
+    const won = r.winnerId ? r.winnerId === this.state.userClubId : mine > theirs;
+    const outcome: MatchOutcome = mine === theirs && !r.winnerId ? 'draw' : won ? 'win' : 'loss';
+    recordOutcome(this.state.board, outcome, this.reps.get(home ? f.away : f.home) ?? 60, this.club().rep);
+    const morale = outcome === 'win' ? 3 : outcome === 'loss' ? -3 : 0;
+    for (const p of this.squad()) this.state.players[p.id]!.morale = clamp(this.state.players[p.id]!.morale + morale, 30, 99);
+    this.changed();
+    updateConfidence(this.state.board, objectivesScore(this.state.board.objectives, this.objectiveStatuses()), this.state.finance.balance, this.club().rep);
+  }
+
+  private boardMonth(date: IsoDate): void {
+    const b = this.state.board;
+    updateConfidence(b, objectivesScore(b.objectives, this.objectiveStatuses()), this.state.finance.balance, this.club().rep);
+    if (b.clubConfidence < 35) this.news(date, '⚠️ Diretoria preocupada', `A confiança da diretoria está em ${b.clubConfidence}%.`);
+    b.jobOffers = b.jobOffers.filter((o) => o.expires >= date || b.sacked);
+  }
+
+  /** Fim da liga do usuário: avaliação, demissão ou propostas de outros clubes. */
+  private seasonReview(competitionId: string, date: IsoDate): void {
+    const s = this.state;
+    const b = s.board;
+    const comp = s.calendar.competitions[competitionId]!;
+    const statuses = this.objectiveStatuses();
+    const score = objectivesScore(b.objectives, statuses);
+    updateConfidence(b, score, s.finance.balance, this.club().rep);
+    const position = sortTable(comp.table).findIndex((r) => r.clubId === s.userClubId) + 1;
+    b.history.push({ season: comp.seasonKey, clubId: s.userClubId, position, score });
+    b.rating = clamp(Math.round((b.rating + (score - 60) / 100) * 100) / 100, 1, 10);
+    const rng = createRng(s.seed).derive(`jobs:${date}`);
+    const own = this.club().rep;
+    const others = this.db.clubs.filter((c) => c.division && c.id !== s.userClubId).sort((a, b2) => a.id.localeCompare(b2.id));
+    if (score < 45 && b.clubConfidence < 45) {
+      b.sacked = true;
+      const pool = others.filter((c) => c.rep <= own - 3).sort((a, b2) => a.rep - b2.rep);
+      const picks = pool.length ? pool : others.sort((a, b2) => a.rep - b2.rep);
+      b.jobOffers = picks.slice(-12).filter(() => rng.chance(0.5)).slice(0, 3).map((c) => ({ clubId: c.id, expires: addDays(date, 365) }));
+      if (!b.jobOffers.length) b.jobOffers = [{ clubId: picks[0]!.id, expires: addDays(date, 365) }];
+      this.news(date, '❌ Demitido', `A diretoria encerrou seu trabalho (avaliação ${score}/100). Escolha um novo clube.`);
+      return;
+    }
+    this.news(date, `Avaliação da temporada ${comp.seasonKey}`, `${position}º lugar • nota da diretoria ${score}/100 • sua nota ${b.rating.toFixed(2)}.`);
+    const interested = others.filter((c) => c.rep > own && jobRequirement(c.rep) <= b.rating + 0.9 && rng.chance(0.35)).slice(0, 3);
+    b.jobOffers = interested.map((c) => ({ clubId: c.id, expires: addDays(date, 30) }));
+    for (const c of interested) this.news(date, 'Proposta de emprego', `${c.name} quer contratar você.`);
+  }
+
+  /** Assume outro clube (proposta recebida). O caixa e a base passam a ser os do novo clube. */
+  takeJob(clubId: string): MarketResult {
+    const s = this.state;
+    const b = s.board;
+    if (!b.jobOffers.some((o) => o.clubId === clubId)) return fail('not-available');
+    const club = this.club(clubId);
+    // Os jovens da base ficam no clube antigo, como profissionais.
+    s.market.academy = { ...s.market.academy, roster: [], candidates: [], level: 1, lastIntake: null };
+    s.market.offers = [];
+    s.userClubId = clubId;
+    s.finance = createFinance(clubId, club.baseBudget);
+    this.bindFinance();
+    this.changed();
+    s.lineup = autoLineup(this.squad(), s.lineup.formation, this.date);
+    b.objectives = boardObjectives({ ...club, division: this.userDivision() });
+    b.jobOffers = [];
+    b.sacked = false;
+    b.clubConfidence = 70;
+    b.fanConfidence = 70;
+    b.recent = [];
+    this.news(this.date, `Novo clube: ${club.name}`, `${s.manager} assume o ${club.name}.`);
+    return { ok: true };
+  }
+
+  declineJob(clubId: string): void {
+    const b = this.state.board;
+    if (b.sacked && b.jobOffers.length <= 1) return;
+    b.jobOffers = b.jobOffers.filter((o) => o.clubId !== clubId);
+  }
+
+  // -------------------------------------------------------------- olheiros
+
+  hireScout(): MarketResult {
+    const b = this.state.board;
+    if (b.scouts.length >= SCOUT_LIMIT) return fail('max-level');
+    const r = spend(this.state.finance, { date: this.date, kind: 'other', label: 'Contratação de olheiro', amount: scoutHireCost(b.scouts.length) });
+    if (!r.ok) return fail('no-funds');
+    b.scouts.push(newScout(b.scouts.length, this.nextId('s')));
+    return { ok: true };
+  }
+
+  sendScout(id: string, region: ScoutRegion, months: number): MarketResult {
+    const sc = this.state.board.scouts.find((x) => x.id === id);
+    if (!sc || sc.mission) return fail('not-available');
+    sc.mission = { region, end: addDays(this.date, clamp(Math.round(months), 1, 6) * 30) };
+    sc.reports = [];
+    return { ok: true };
+  }
+
+  private scoutWeek(date: IsoDate): void {
+    const countries: Record<ScoutRegion, string[]> = { BR: ['BR'], ENG: ['ENG'], ESP: ['ESP'], SUL: ['ARG', 'URU', 'ECU'], LIVRES: [] };
+    const country = new Map(this.db.clubs.map((c) => [c.id, c.country]));
+    for (const sc of this.state.board.scouts) {
+      if (!sc.mission || sc.mission.end > date) continue;
+      const rng = createRng(this.state.seed).derive(`scout:${sc.id}:${date}`);
+      const region = sc.mission.region;
+      const pool = Object.entries(this.state.players)
+        .filter(([, p]) => (region === 'LIVRES' ? !p.clubId : !!p.clubId && p.clubId !== this.state.userClubId && countries[region].includes(country.get(p.clubId) ?? '')))
+        .filter(([id]) => !this.state.market.academy.roster.includes(id))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([id, p]) => ({ id, p, score: p.pot + rng.float(0, 25) + sc.level - Math.max(0, p.age - 26) * 2 }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, scoutReportSize(sc.level));
+      const err = Math.round((100 - sc.accuracy) / 5);
+      sc.reports = pool.map(({ id, p }) => ({ playerId: id, ovr: p.ovr + rng.int(-err, err), pot: Math.max(p.ovr, p.pot + rng.int(-err, err)) }));
+      this.news(date, 'Relatório de olheiro', `${sc.name} voltou com ${sc.reports.length} nomes.`);
+      sc.mission = null;
+    }
+  }
+
   snapshot(): InvariantSnapshot {
     return { ...calendarSnapshot(this.state.calendar, this.state.userClubId), ...financeSnapshot(this.state.finance), ...lineupSnapshot(this.state.lineup, this.squad()) };
   }
@@ -506,15 +677,21 @@ export class Game {
   private readonly onEvent = (e: CalendarEvent, cal: CalendarState): void => {
     this.finance(e, cal);
     switch (e.type) {
-      case 'fixture-played':
-        return this.countAppearances(cal.fixtures[e.fixtureId]!, cal.date);
+      case 'fixture-played': {
+        const f = cal.fixtures[e.fixtureId]!;
+        this.countAppearances(f, cal.date);
+        if (involves(this.state.userClubId)(f)) this.userResult(f);
+        return;
+      }
       case 'tick':
         if (e.tick === 'monthly') {
           this.developAll(cal);
           if (youthIntakeDue(this.state.market.academy, e.date)) this.youthIntake(e.date);
+          this.boardMonth(e.date);
         } else {
           this.injuries(e.date);
           this.marketWeek(e.date);
+          this.scoutWeek(e.date);
         }
         return;
       case 'season-opened':
@@ -523,6 +700,7 @@ export class Game {
         const comp = cal.competitions[e.competitionId]!;
         const champion = this.db.clubs.find((c) => c.id === e.championId)?.name ?? '—';
         if (comp.participants.includes(this.state.userClubId) || comp.format === 'league') this.news(e.date, `${comp.name} ${comp.seasonKey}: campeão ${champion}`);
+        if (comp.format === 'league' && comp.participants.includes(this.state.userClubId)) this.seasonReview(comp.id, e.date);
         return;
       }
       default:
@@ -599,7 +777,8 @@ export class Game {
     this.changed();
     compactCalendar(cal);
     if (clubs.has(this.state.userClubId)) {
-      this.news(e.date, `Temporada ${e.seasonKey}`, 'Calendário publicado.');
+      this.state.board.objectives = boardObjectives({ ...this.club(), division: this.userDivision(cal) });
+      this.news(e.date, `Temporada ${e.seasonKey}`, `Calendário publicado. Objetivo na liga: ${this.state.board.objectives[0]!.title}.`);
       this.reconcile(e.date);
     }
   }

@@ -11,12 +11,13 @@ const brl = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 const fmtDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 const tier = (ovr: number) => (ovr >= 85 ? 'special' : ovr >= 78 ? 'gold' : ovr >= 70 ? 'silver' : 'bronze');
 
-type Tab = 'painel' | 'elenco' | 'mercado' | 'base' | 'competicoes' | 'financas';
+type Tab = 'painel' | 'elenco' | 'mercado' | 'base' | 'diretoria' | 'competicoes' | 'financas';
 const TABS: [Tab, string, string][] = [
   ['painel', 'Painel', '🏠'],
   ['elenco', 'Elenco', '📋'],
   ['mercado', 'Mercado', '🔁'],
   ['base', 'Base', '🌱'],
+  ['diretoria', 'Diretoria', '👔'],
   ['competicoes', 'Competições', '🏆'],
   ['financas', 'Finanças', '💰'],
 ];
@@ -105,6 +106,7 @@ export function App() {
         {tab === 'elenco' && <Squad view={view} busy={busy} send={send} />}
         {tab === 'mercado' && <Market view={view} busy={busy} send={send} />}
         {tab === 'base' && <Academy view={view} busy={busy} send={send} />}
+        {tab === 'diretoria' && <Board view={view} busy={busy} send={send} />}
         {tab === 'competicoes' && <Competitions view={view} />}
         {tab === 'financas' && <Finances view={view} />}
       </main>
@@ -487,7 +489,7 @@ const POS_FILTER = ['', 'GOL', 'ZAG', 'LD', 'LE', 'VOL', 'MC', 'MAT', 'PE', 'PD'
 
 function Market({ view, busy, send }: { view: View; busy: boolean; send: Send }) {
   const m = view.market;
-  const [mode, setMode] = useState<'comprar' | 'livres' | 'meus'>('comprar');
+  const [mode, setMode] = useState<'comprar' | 'livres' | 'meus' | 'olheiros'>('comprar');
   const [pos, setPos] = useState('');
   const [q, setQ] = useState('');
   const [maxAsk, setMaxAsk] = useState(0);
@@ -527,13 +529,15 @@ function Market({ view, busy, send }: { view: View; busy: boolean; send: Send })
         </section>
       )}
       <div class="row">
-        {(['comprar', 'livres', 'meus'] as const).map((k) => (
+        {(['comprar', 'livres', 'meus', 'olheiros'] as const).map((k) => (
           <button key={k} class={mode === k ? 'active' : 'ghost'} onClick={() => setMode(k)}>
-            {{ comprar: 'Buscar jogadores', livres: 'Agentes livres', meus: 'Contratos do elenco' }[k]}
+            {{ comprar: 'Buscar jogadores', livres: 'Agentes livres', meus: 'Contratos do elenco', olheiros: 'Olheiros' }[k]}
           </button>
         ))}
       </div>
-      {mode === 'meus' ? (
+      {mode === 'olheiros' ? (
+        <Scouts view={view} busy={busy} send={send} open={(id) => { const p = m.players.find((x) => x.id === id); if (p) choose(p); }} />
+      ) : mode === 'meus' ? (
         <section class="card">
           <div class="table-wrap">
             <table class="table">
@@ -669,6 +673,120 @@ function Academy({ view, busy, send }: { view: View; busy: boolean; send: Send }
         ))}
         {!a.roster.length && <p class="muted">A base ainda não tem atletas contratados.</p>}
       </section>
+    </>
+  );
+}
+
+function Scouts({ view, busy, send, open }: { view: View; busy: boolean; send: Send; open: (id: string) => void }) {
+  const b = view.board;
+  const [region, setRegion] = useState('BR');
+  const [months, setMonths] = useState(2);
+  const names = new Map(view.market.players.map((p) => [p.id, p]));
+  return (
+    <>
+      <section class="card">
+        <div class="row filters">
+          <select value={region} onChange={(e) => setRegion((e.target as HTMLSelectElement).value)}>
+            {b.regions.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <select value={months} onChange={(e) => setMonths(+(e.target as HTMLSelectElement).value)}>
+            {[1, 2, 3, 4, 6].map((n) => <option key={n} value={n}>{n} {n === 1 ? 'mês' : 'meses'}</option>)}
+          </select>
+          <button disabled={busy || b.scouts.length >= b.scoutLimit} onClick={() => send({ type: 'hireScout' })}>
+            Contratar olheiro • {brl(b.scoutCost)}
+          </button>
+        </div>
+        <p class="tiny muted">Missões mais longas não trazem mais nomes: o tamanho do relatório depende do nível do olheiro. A precisão define o erro nas estimativas.</p>
+      </section>
+      {b.scouts.map((sc) => (
+        <section class="card" key={sc.id}>
+          <div class="list-row">
+            <div class="grow">
+              <b>{sc.name}</b>
+              <div class="tiny muted">Nível {sc.level} • precisão {sc.accuracy}% • {sc.mission ? `em ${sc.mission.region} até ${fmtDate(sc.mission.end)}` : 'disponível'}</div>
+            </div>
+            <button disabled={busy || !!sc.mission} onClick={() => send({ type: 'sendScout', id: sc.id, region, months })}>Enviar</button>
+          </div>
+          {sc.reports.map((r) => {
+            const p = names.get(r.playerId);
+            return p ? (
+              <div class="list-row" key={r.playerId} onClick={() => open(r.playerId)} style="cursor:pointer">
+                <span class="pos">{p.pos}</span>
+                <div class="grow"><b>{p.name}</b><div class="tiny muted">{p.club?.name ?? 'Sem clube'} • {p.age} anos • estimativa POT {r.pot}</div></div>
+                <span class={`ovr ${tier(r.ovr)}`}>~{r.ovr}</span>
+              </div>
+            ) : null;
+          })}
+        </section>
+      ))}
+      {!b.scouts.length && <p class="muted">Nenhum olheiro contratado.</p>}
+    </>
+  );
+}
+
+const OUT: Record<string, [string, string]> = { win: ['V', 'ok-text'], draw: ['E', 'muted'], loss: ['D', 'danger-text'] };
+
+function Meter({ label, value }: { label: string; value: number }) {
+  return (
+    <section class="card">
+      <div class={`metric ${value < 35 ? 'danger-text' : value >= 70 ? 'ok-text' : ''}`}>{value}%</div>
+      <div class="metric-label">{label}</div>
+      <div class="bar"><span style={{ width: `${value}%` }} /></div>
+    </section>
+  );
+}
+
+function Board({ view, busy, send }: { view: View; busy: boolean; send: Send }) {
+  const b = view.board;
+  return (
+    <>
+      <div class="page-head">
+        <h1>Diretoria</h1>
+        <p class="muted">A confiança depende dos objetivos, dos últimos resultados e do caixa. Avaliação no fim de cada liga.</p>
+      </div>
+      {b.sacked && <section class="card danger-text"><b>Você foi demitido.</b> Escolha um novo clube para continuar a carreira.</section>}
+      {b.jobOffers.length > 0 && (
+        <section class="card">
+          <h3>Propostas de emprego</h3>
+          {b.jobOffers.map((o) => (
+            <div class="list-row" key={o.club.id}>
+              <div class="grow"><b>{o.club.name}</b><div class="tiny muted">Reputação {o.rep} • até {fmtDate(o.expires)}</div></div>
+              <button disabled={busy} onClick={() => confirm(`Assumir o ${o.club.name}? Você deixa o clube atual.`) && send({ type: 'takeJob', clubId: o.club.id })}>Assumir</button>
+              {!(b.sacked && b.jobOffers.length === 1) && <button class="ghost" disabled={busy} onClick={() => send({ type: 'declineJob', clubId: o.club.id })}>Recusar</button>}
+            </div>
+          ))}
+        </section>
+      )}
+      <div class="grid metrics">
+        <Meter label="Confiança da diretoria" value={b.clubConfidence} />
+        <Meter label="Confiança da torcida" value={b.fanConfidence} />
+        <section class="card"><div class="metric">{b.rating.toFixed(2)}</div><div class="metric-label">Sua nota (1–10)</div></section>
+        <section class="card">
+          <div class="metric">{b.record.wins}-{b.record.draws}-{b.record.losses}</div>
+          <div class="metric-label">V-E-D na carreira</div>
+          <div class="small">{b.recent.map((r, i) => <b key={i} class={OUT[r]![1]}>{OUT[r]![0]} </b>)}</div>
+        </section>
+      </div>
+      <section class="card">
+        <h3>Objetivos da temporada • avaliação atual {b.score}/100</h3>
+        {b.objectives.map((o) => (
+          <div class="list-row" key={o.title}>
+            <div class="grow"><b>{o.title}</b><div class="tiny muted">Peso {o.weight}%</div><div class="bar"><span style={{ width: `${o.status}%` }} /></div></div>
+            <b class={o.status < 50 ? 'danger-text' : o.status >= 90 ? 'ok-text' : ''}>{o.status}</b>
+          </div>
+        ))}
+      </section>
+      {b.history.length > 0 && (
+        <section class="card">
+          <h3>Histórico</h3>
+          {b.history.map((h, i) => (
+            <div class="list-row" key={i}>
+              <div class="grow"><b>{h.season} • {h.club}</b></div>
+              <span class="small">{h.position}º • {h.score}/100</span>
+            </div>
+          ))}
+        </section>
+      )}
     </>
   );
 }

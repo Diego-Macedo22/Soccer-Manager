@@ -68,7 +68,7 @@ h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; text-transform: upperc
 .pill { padding: 6px 10px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; white-space: nowrap; }
 .continue { flex: none; }
 .tabs {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   background: var(--panel); border-top: 1px solid var(--line);
 }
 .tabs button { border: 0; background: transparent; display: grid; justify-items: center; gap: 2px; font-size: 11px; padding: 6px 2px; }
@@ -162,3 +162,6 @@ h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; text-transform: upperc
 @media (min-width: 768px) { .sheet { bottom: 12px; } }
 button.ghost { background: transparent; }
 .row > button.active { border-color: var(--club); background: color-mix(in srgb, var(--club) 22%, transparent); }
+.bar { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--panel3); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--club); transition: width .4s ease; }
+@media (max-width: 420px) { .tabs button { font-size: 9.5px; } }

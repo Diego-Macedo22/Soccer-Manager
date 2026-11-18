@@ -21,7 +21,28 @@ export type Command =
   | { type: 'signYouth'; id: string }
   | { type: 'dismissYouth'; id: string }
   | { type: 'promoteYouth'; id: string }
-  | { type: 'releaseYouth'; id: string };
+  | { type: 'releaseYouth'; id: string }
+  | { type: 'hireScout' }
+  | { type: 'sendScout'; id: string; region: string; months: number }
+  | { type: 'takeJob'; clubId: string }
+  | { type: 'declineJob'; clubId: string };
+
+export interface BoardView {
+  objectives: { title: string; weight: number; status: number }[];
+  score: number;
+  clubConfidence: number;
+  fanConfidence: number;
+  rating: number;
+  record: { played: number; wins: number; draws: number; losses: number };
+  recent: ('win' | 'draw' | 'loss')[];
+  history: { season: string; club: string; position: number | null; score: number }[];
+  jobOffers: { club: ClubRef; rep: number; expires: string }[];
+  sacked: boolean;
+  scouts: { id: string; name: string; level: number; accuracy: number; mission: { region: string; end: string } | null; reports: { playerId: string; ovr: number; pot: number }[] }[];
+  scoutCost: number;
+  scoutLimit: number;
+  regions: [string, string][];
+}
 
 export interface MarketPlayer {
   id: string;
@@ -135,4 +156,5 @@ export interface View {
   finance: { balance: number; wages: number; totals: Record<string, number>; entries: { date: string; label: string; value: number; detail?: string }[] };
   saveSize: number;
   market: MarketView;
+  board: BoardView;
 }

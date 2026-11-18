@@ -15,8 +15,9 @@ import type { FinanceState } from '../finance/ledger.ts';
 import type { PlayerAttributes, Position } from '../squad/positions.ts';
 import type { Lineup } from '../squad/lineup.ts';
 import { createMarket, type MarketState } from '../market/market.ts';
+import { createBoard, type BoardState } from '../board/board.ts';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const SAVE_FORMAT = 'soccer-manager-save';
 /** ~2,5 milhões de caracteres: metade da cota típica de localStorage, folgado para IndexedDB. */
 export const MAX_SAVE_CHARS = 2_500_000;
@@ -58,6 +59,7 @@ export interface CareerState {
   players: Record<string, PlayerDynamic>;
   news: NewsItem[];
   market: MarketState;
+  board: BoardState;
 }
 
 export interface SaveEnvelope {
@@ -68,9 +70,11 @@ export interface SaveEnvelope {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/** Migrações conhecidas. v1 → v2: mercado e base. */
+/** Migrações conhecidas. v1 → v2: mercado e base; v2 → v3: diretoria e olheiros. */
 export const MIGRATIONS: Record<number, (data: any) => any> = {
   1: (d) => ({ ...d, market: createMarket() }),
+  // v2 → v3: diretoria e olheiros. Os objetivos são definidos pelo Game ao carregar (dependem do clube).
+  2: (d) => ({ ...d, board: { ...createBoard({ rep: 70, division: null }), objectives: [] } }),
 };
 
 /** Migração da versão `n` para `n + 1`, sobre JSON cru. */

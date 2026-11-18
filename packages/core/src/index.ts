@@ -7,3 +7,4 @@ export * from './squad/index.ts';
 export * from './development/index.ts';
 export * from './save/index.ts';
 export * from './market/market.ts';
+export * from './board/board.ts';

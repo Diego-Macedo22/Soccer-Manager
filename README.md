@@ -14,7 +14,7 @@ O jogo está sendo reconstruído sobre uma **base modular em TypeScript**. A v0.
 
 | Parte | Situação |
 |---|---|
-| **v0.6 (web, `apps/web`)** | Jogável: nova carreira, painel, elenco e tática, mercado, base, competições e finanças. |
+| **v0.6 (web, `apps/web`)** | Jogável: nova carreira, painel, elenco e tática, mercado, olheiros, base, diretoria, competições e finanças. |
 | **v0.5 legado (`game/`)** | Congelada como referência e para os testes de regressão. Continua jogável. |
 
 O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAMENTO-FASE1-COMPLEMENTO.md](docs/PLANEJAMENTO-FASE1-COMPLEMENTO.md).
@@ -38,12 +38,15 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 - **Mercado** (janelas em janeiro e julho): compra com chance de aceite pela oferta (fórmula da v0.5), empréstimo até a próxima temporada por 4% do valor, agentes livres, propostas de outros clubes (venda ou empréstimo) e mercado da IA movimentando os outros clubes
 - **Contratos**: renovação por 3 temporadas, rescisão (metade dos salários restantes) e saída como agente livre quando o contrato vence; a IA renova os dela
 - **Base**: relatório a cada 3 meses com 5 a 8 jovens de 14 a 18 anos, OVR e potencial ligados ao nível da instalação (1 a 10), limite de 45 atletas, promoção ao profissional
+- **Olheiros**: até 6, contratados por 1,5 mi + 1,35 mi por olheiro já contratado; missões de 1 a 6 meses por região (Brasil, Inglaterra, Espanha, América do Sul ou agentes livres) e relatório com estimativas de OVR/POT que erram conforme a precisão
+- **Diretoria**: objetivos com peso (liga, copa, caixa e moral) pela reputação e divisão do clube; confiança da diretoria e da torcida pelos objetivos, pelos últimos 8 jogos e pelo caixa; a confiança da torcida mexe na bilheteria e nos produtos
+- **Técnico**: nota de 1 a 10 por resultado (com peso pela força do adversário), recorde V-E-D e histórico por temporada; avaliação no fim da liga, com demissão quando vai mal e propostas de clubes maiores quando vai bem
 - Resultados pelo modelo rápido da v0.4 (Poisson pela força do XI), até o motor de partida da Fase 4 ficar pronto
 
 **Interface web (`apps/web`, Vite + Preact)**
 - Nova carreira e "continuar carreira salva"
 - Painel com próximo jogo, posição, últimos resultados e notícias; avança 1 semana ou 1 mês e para no dia do jogo
-- Elenco e tática com campo, banco e reservas; Mercado com filtros, proposta ajustável e contratos do elenco; Base com relatórios e promoção; Competições com classificação e zonas; Finanças com caixa, folha e extrato
+- Elenco e tática com campo, banco e reservas; Mercado com filtros, proposta ajustável, contratos do elenco e olheiros; Base com relatórios e promoção; Diretoria com objetivos, confianças, nota e propostas de emprego; Competições com classificação e zonas; Finanças com caixa, folha e extrato
 - A carreira roda num **Web Worker**, então a tela não trava
 - Save no **IndexedDB**, gravado após cada ação
 - Layout mobile-first: abas embaixo no celular e barra lateral a partir de 768 px; modo claro e escuro pelo sistema
@@ -51,7 +54,7 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 **Base de dados (`packages/data`)**
 - Clubes e jogadores com nomes fictícios, extraídos do legado e validados por testes
 
-**Ainda falta na v0.6** (existe só na v0.5): olheiros, pré-contrato, competições continentais, objetivos da diretoria, partida ao vivo com narração, PWA.
+**Ainda falta na v0.6** (existe só na v0.5): pré-contrato, competições continentais, partida ao vivo com narração, PWA.
 
 ## O que existe na v0.5 legado
 
@@ -164,7 +167,7 @@ apps/
         └── idb-store.ts    # save no IndexedDB
 packages/
 ├── core/                   # regras puras, sem DOM e determinísticas
-│   └── src/                # calendar, finance, squad, development, market, save, rng, invariants
+│   └── src/                # calendar, finance, squad, development, market, board, save, rng, invariants
 ├── data/                   # base de clubes e jogadores + adaptadores de save
 ├── game/                   # classe Game: liga todos os módulos ao calendário
 └── legacy-harness/         # roda a v0.5 em Node com semente, para testes de regressão
@@ -175,7 +178,7 @@ docs/
 
 ## Próximos passos
 
-1. **Fase 3, restante:** olheiros, pré-contrato, competições continentais, objetivos da diretoria, importação de save da v0.5 pela interface e PWA.
+1. **Fase 3, restante:** pré-contrato, competições continentais, importação de save da v0.5 pela interface e PWA.
 2. **Fase 4:** motor de partida próprio, determinístico, que gera uma linha do tempo de eventos, com melhores momentos em 2D e narração.
 3. **Fases 5 a 7:** partidas em 3D com **Three.js**, usando modelos e animações do Blender + Mixamo, com câmera de transmissão e replays.
 4. **Fase 8:** controles por teclado, gamepad e toque.
