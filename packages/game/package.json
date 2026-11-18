@@ -1,0 +1,14 @@
+{
+  "name": "@sm/game",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Camada de jogo: liga calendário, finanças, elenco, evolução e save numa carreira.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sm/core": "0.0.0",
+    "@sm/data": "0.0.0"
+  }
+}

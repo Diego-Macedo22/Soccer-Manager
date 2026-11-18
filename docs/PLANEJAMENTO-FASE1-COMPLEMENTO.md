@@ -668,6 +668,32 @@ Por isso a compactação precisa rodar a cada abertura de temporada, o que fica 
 - A "camada de jogo" que liga tudo no `onEvent`.
 
 O próximo passo natural é a **Fase 3 (interface)** ou a camada de jogo que ela vai usar.
+
+### Camada de jogo (`packages/game/`): ✅
+
+A classe `Game` é a única peça que a interface precisa usar. Ela oferece `Game.create`, `advance(data, { stopAtUserMatch })`, `playUserMatch`, `squad`, `snapshot`, `save` e `Game.load`.
+
+Todos os módulos reagem ao calendário (`onEvent`) na data de cada evento:
+
+| Evento | O que acontece |
+|---|---|
+| Jogo disputado | Bilheteria, jogos na temporada e desgaste dos titulares |
+| Toda semana | Produtos e camisas; lesões no elenco do usuário (taxa da v0.5), com escalação reconciliada e aviso nas notícias |
+| Todo mês | Folha salarial, recuperação física e evolução de todos os jogadores |
+| Nova temporada do ciclo | Idade +1 e contratos −1 (exceto na primeira temporada da carreira), jogos zerados, aporte da diretoria e compactação do save |
+| Competição encerrada | Notícia com o campeão |
+
+Os resultados usam o modelo rápido da v0.4 (Poisson pela força do XI). O time do usuário entra com a escalação escolhida; os outros, com a automática. Esse modelo será substituído pelo motor da Fase 4.
+
+**Testes** (`packages/game/test/game.test.ts`, com a base real):
+
+- Uma temporada com as invariantes **completas** a cada passo: data, jogos, folha, caixa × extrato e escalação.
+- Os jovens de todos os clubes evoluem, as lesões acontecem e os titulares acumulam jogos.
+- Um salto único e passos variados geram a **mesma carreira**.
+- Após 3 temporadas: idade +3, 3 aportes e save compactado abaixo de 1,3 milhão de caracteres.
+- Jogo ao vivo: o avanço para no dia, o resultado é registrado, e salvar → carregar continua a carreira de forma idêntica.
+
+**Desempenho:** cerca de 2,8 s por temporada em Node. Na web, isso vai rodar num Web Worker (Fase 3).
 3. **Evolução:** OVR coerente com os atributos (B17).
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
 5. **Save:** versão de schema e migrações (B7).

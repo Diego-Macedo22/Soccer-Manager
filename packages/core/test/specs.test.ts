@@ -16,10 +16,9 @@ describe('sistemas periódicos (mercado, olheiros, base)', () => {
 
 // Evolução (B17): implementado na Fase 2 — ver test/development.test.ts e
 // packages/legacy-harness/test/development-vs-legacy.test.ts.
+// Ligações de evolução, idade e compactação: feitas na camada de jogo (packages/game).
 describe('evolução: integrações futuras', () => {
-  test.todo('evolução mensal ligada ao onTick do calendário, com jogos da temporada vindos das súmulas');
   test.todo('base (academia): evolução com teto de 75 e bônus da instalação, como na v0.5');
-  test.todo('idade sobe uma vez por temporada, na abertura do ciclo do clube');
 });
 
 // Finanças (B1 e "toda variação de caixa tem lançamento"): implementado na
@@ -48,7 +47,6 @@ describe('partida (match-engine)', () => {
 // e packages/legacy-harness/test/legacy-save-import.test.ts.
 
 describe('persistência: integração com o jogo (Fase 3)', () => {
-  test.todo('compactCalendar roda automaticamente na abertura de cada temporada (sem ela, 3 temporadas ≈ 2,2 mi de caracteres)');
   test.todo('adaptador IndexedDB do SaveStore na web, com o mesmo contrato do MemoryStore');
   test.todo('B8: partida ao vivo salva apenas em pontos de controle (intervalo, fim), não a cada minuto');
 });
