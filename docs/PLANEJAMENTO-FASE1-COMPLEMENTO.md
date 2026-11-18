@@ -556,10 +556,34 @@ No modo manager, o motor roda acelerado e grava a timeline. No modo jogável, el
 
 **Fica para a Fase 3:** guardar a seleção do "⇄ Trocar" no estado da tela e mostrar as mudanças como aviso.
 
+### Evolução (`packages/core/src/development/`): ✅
+
+**Causa de B17 (confirmada com os dados reais):**
+
+- O legado recalculava o OVR como média simples dos atributos.
+- Os atributos foram gerados com perfil de posição, então mais de 70% dos jogadores perdiam 3 pontos ou mais no primeiro "ganho" de evolução. Os goleiros perdiam 8.
+
+**Correção:**
+
+- O OVR passa a ser uma média ponderada por posição (`POSITION_WEIGHTS`). O goleiro mantém a fórmula da v0.4.
+- `calibrateAttributes` ajusta os atributos importados para reproduzir o OVR cadastrado, preservando o perfil do jogador.
+- `developMonth` mantém a curva da v0.5 (idade, minutos, moral, forma, potencial). Cada nível sobe exatamente +1, evoluindo os 3 atributos principais da posição.
+- O declínio começa pelo físico.
+- Minutos são medidos como taxa de participação.
+- Emprestados não ganham mais jogos fictícios.
+
+**Testes:**
+
+- `packages/core/test/development.test.ts`: pesos, calibração em 500 casos aleatórios, jovem ativo × inativo, curva por idade, veterano ativo × parado, efeito do potencial e o goleiro com perfil da v0.5.
+- `packages/legacy-harness/test/development-vs-legacy.test.ts`: os 1.564 jogadores reais da v0.5 calibrados com o OVR exato. Numa temporada, os jovens até 21 anos ganham em média **+2,35**, contra −2,70 no legado, e nenhum jovem cai.
+
+**Observação de equilíbrio:** com a curva da v0.5, veteranos de 32+ quase não declinam na primeira temporada (média 0,0, igual ao legado). Se quiser um declínio mais visível, isso é um ajuste de parâmetro.
+
 ### Próximos módulos da Fase 2
 
 1. ~~**Finanças**~~ ✅
 2. ~~**Elenco e escalação**~~ ✅
+3. ~~**Evolução**~~ ✅
 3. **Evolução:** OVR coerente com os atributos (B17).
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
 5. **Save:** versão de schema e migrações (B7).

@@ -14,9 +14,12 @@ describe('sistemas periódicos (mercado, olheiros, base)', () => {
   test.todo('carreira começa na data de abertura do ciclo do clube escolhido (cycleOpenDate), com o mundo pré-simulado');
 });
 
-describe('evolução (core/development)', () => {
-  test.todo('B17: OVR e atributos são coerentes desde a geração; a evolução nunca reduz o OVR de um jovem ativo');
-  test.todo('jovens com minutos evoluem em média; veteranos declinam gradualmente (comparar com a caracterização)');
+// Evolução (B17): implementado na Fase 2 — ver test/development.test.ts e
+// packages/legacy-harness/test/development-vs-legacy.test.ts.
+describe('evolução: integrações futuras', () => {
+  test.todo('evolução mensal ligada ao onTick do calendário, com jogos da temporada vindos das súmulas');
+  test.todo('base (academia): evolução com teto de 75 e bônus da instalação, como na v0.5');
+  test.todo('idade sobe uma vez por temporada, na abertura do ciclo do clube');
 });
 
 // Finanças (B1 e "toda variação de caixa tem lançamento"): implementado na
