@@ -14,7 +14,8 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "packages/*/scripts/**/*.ts"]
 }

@@ -1,0 +1,15 @@
+{
+  "name": "@sm/data",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Base de dados estática do jogo (clubes e jogadores fictícios) e adaptadores para o core.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./convert": "./src/convert.ts",
+    "./validate": "./src/validate.ts"
+  },
+  "dependencies": {
+    "@sm/core": "0.0.0"
+  }
+}

@@ -78,6 +78,9 @@ Legenda: **[C]** confirmado em execução · **[E]** evidência estática no có
 | **B16** | Alta | **A Copa Nacional é disputada por clubes ingleses e espanhóis.** Encontrado na Fase 1 pelo harness. | [C] Dos 32 clubes da Copa, 11 são da Liga Inglesa, 8 da Espanhola e só 13 são brasileiros. Um clube inglês do usuário disputa a Copa Nacional em março. | `createCup` (l. 113) escolhe os 32 melhores entre todos os clubes não convidados. Quando a v0.5 acrescentou as ligas europeias, os clubes delas entraram nesse filtro sem que ninguém percebesse. |
 | **B17** | Alta | **A evolução mensal derruba o OVR dos jovens.** Encontrado na Fase 1. | [C] Os jogadores de até 21 anos perdem em média **2,7 de OVR** numa temporada, sem variação entre as 8 sementes. Para 1.167 de 1.431 jogadores de linha, a média dos atributos fica 3 ou mais pontos abaixo do OVR cadastrado (média −4,3). | Na primeira evolução, `v04AdjustAttrs` (l. 725) recalcula o OVR como média simples dos atributos (`v04OverallFromAttrs`, l. 724). Esses atributos foram gerados por perfil de posição em `buildAttrs` e não são coerentes com o OVR cadastrado. |
 | B18 | Média | **O mercado da IA fica parado quando se avança pelo calendário.** Encontrado na Fase 1. | [C] Nenhuma transferência entre clubes da IA numa temporada avançada pelo calendário, nas 8 sementes. [E] Toda a IA de mercado está dentro de `if(open)` (l. 940–941), e `advanceGameDays` (l. 955) executa os sorteios semanais **depois** de mover a data para o fim do avanço. | Todas as semanas são avaliadas com a data final. Se essa data cai fora da janela, nenhuma semana tem mercado aberto. Mesmo padrão de B4: eventos processados fora da ordem cronológica. |
+| **B19** | Alta | **Os elencos brasileiros têm de 12 a 17 jogadores e um só goleiro.** Encontrado na Fase 2. | [C] 57 clubes estavam abaixo de 18 jogadores ou de 2 goleiros, entre eles quase toda a Série A. Com uma lesão, o time não tinha reserva no gol. | A v0.4 removeu os "fillers" dos clubes brasileiros (l. 673) sem repor jogadores. |
+| B20 | Média | **A torcida dos clubes ingleses e espanhóis estava em escala 35–100**, enquanto a dos brasileiros vinha em número de torcedores. Encontrado na Fase 2. | [C] O Arsenol FC tinha "100 torcedores": a bilheteria ficava em torno de R$ 150 por jogo e os produtos em R$ 3 por semana. | Unidades diferentes em `V05_FOREIGN_CLUBS` e `V04_STADIUMS`. |
+| B21 | Baixa | **O gerador de nomes fictícios criou nomes de clube em jogadores.** Encontrado na Fase 2. | [C] O sobrenome "Santos" virou "Santista FC" (14 jogadores, também nas listas de nomes da base) e o apelido "Cuiabano" virou "Coiabanno", o mesmo nome do clube. Os convidados tinham 14 nomes repetidos dentro do mesmo elenco. | `tools/fictionalize.js` substitui texto sem distinguir clube de pessoa. |
 | B15 | Baixa | Identidade de jogador baseada no nome. | [E] O id é `${clube}_${slug(nome)}_${idx}` (l. 72, 666, 864). `v04PatchExistingDb` (l. 679) casa jogadores pelo nome. `tools/fictionalize.js` não pode ser executado duas vezes. | Renomear, ou nomes fictícios repetidos, quebra a migração. |
 
 Observações de equilíbrio do jogo (não são bugs, mas entram na revisão): apenas o time do usuário sofre lesões (l. 906), jogadores emprestados ganham jogos fictícios (l. 914) e o torneio continental é uma mini-liga só com o usuário e clubes convidados (l. 131).
@@ -579,11 +582,44 @@ No modo manager, o motor roda acelerado e grava a timeline. No modo jogável, el
 
 **Observação de equilíbrio:** com a curva da v0.5, veteranos de 32+ quase não declinam na primeira temporada (média 0,0, igual ao legado). Se quiser um declínio mais visível, isso é um ajuste de parâmetro.
 
+### Dados (`packages/data/`): ✅
+
+**Extração:**
+
+- `npm run extract-data` roda a v0.5 no harness e converte a base final (todas as camadas aplicadas, nomes fictícios) para `src/data/*.json`, com um registro por linha para os diffs ficarem legíveis.
+- O teste `data-extraction.test.ts` garante que os arquivos são exatamente reproduzíveis a partir do legado.
+- O potencial, que era sorteado a cada carreira, fica fixo com a semente 1.
+
+**Modelo:**
+
+- `ClubData`: país em código (BR, ENG, ESP…), divisão, cores, estádio e torcida.
+- `PlayerData`: id `p00001…`, nacionalidade em código, atributos calibrados, salário, valor, contrato e a flag `generated`.
+- `legacy-id-map.json`: id antigo → id novo, para migrar saves (B7).
+
+**Correções feitas na conversão:**
+
+| Bug | Correção |
+|---|---|
+| B15 | Ids independentes do nome. Renomear todos os jogadores não quebra nenhuma referência. |
+| B17 | OVR coerente com os atributos em todos os jogadores. |
+| B19 | 303 jogadores gerados completam 73 elencos de liga (mínimo de 3 goleiros e cobertura de todas as posições). Eles têm OVR um pouco abaixo da média do clube, salário proporcional e nomes fictícios únicos por país. |
+| B20 | A torcida em índice foi convertida para torcedores (× 400 mil; 100 → 40 milhões). |
+| B21 | "Santista FC" → "Santana" e "Coiabanno" (jogador) → "Coiabinho". Os nomes repetidos nos convidados foram trocados. |
+
+Também foram padronizados os países e as nacionalidades, que misturavam português e inglês ("Brasil"/"Brazil", "Uruguai"/"Uruguay").
+
+**Validação:** `validateDatabase` cobre ids, referências, posições, OVR × atributos, potencial, faixa de atributos, nacionalidade, nome de clube em jogador, nome repetido no elenco, tamanho das ligas e mínimo por posição.
+
+**Adaptadores:** `calendarClubs`, `squadOf` e `clubEconomy` ligam os dados ao calendário, à escalação e às finanças.
+
+**Teste de integração:** uma temporada inteira com os 80 clubes e elencos reais respeita as invariantes. Todos os clubes escalam um XI válido, o campeão da Série A está entre os mais fortes e a Copa só tem clubes brasileiros.
+
 ### Próximos módulos da Fase 2
 
 1. ~~**Finanças**~~ ✅
 2. ~~**Elenco e escalação**~~ ✅
 3. ~~**Evolução**~~ ✅
+4. ~~**Dados**~~ ✅
 3. **Evolução:** OVR coerente com os atributos (B17).
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
 5. **Save:** versão de schema e migrações (B7).

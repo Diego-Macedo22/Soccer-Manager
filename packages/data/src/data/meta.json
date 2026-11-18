@@ -1,0 +1,16 @@
+{
+  "description": "Base extraída do legado v0.5 por `npm run extract-data`. Não edite à mão sem atualizar as regras de conversão.",
+  "dataVersion": 1,
+  "legacyAppSha256": "585818a2c1ddd73717968c97abbc3e416944a837ec80a8865db62dd3ae604f71",
+  "legacySeed": 1,
+  "counts": {
+    "clubs": 88,
+    "players": 1867
+  },
+  "report": {
+    "clubsCompleted": 73,
+    "playersAdded": 303,
+    "renamed": 30,
+    "fanbaseScaled": 40
+  }
+}

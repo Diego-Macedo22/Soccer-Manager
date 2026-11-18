@@ -51,8 +51,11 @@ describe('persistência (core/save)', () => {
   test.todo('B8: partida ao vivo salva apenas em pontos de controle (intervalo, fim), não a cada minuto');
 });
 
-describe('dados e identidade (data)', () => {
-  test.todo('B15: ids de jogador estáveis e independentes do nome; renomear não quebra referências');
-  test.todo('B15: gerador de nomes fictícios idempotente e sem colisões');
+// Dados e identidade (B15, B19, B20, B21): implementado na Fase 2 — ver
+// packages/data/test/data.test.ts. Os nomes fictícios agora são dados
+// congelados; o gerador da v0.5 não é mais reaplicado.
+
+describe('dados: interface e editor (Fase 3+)', () => {
   test.todo('B14: nenhum texto vindo de dados é interpolado como HTML sem escape');
+  test.todo('editor de dados valida com validateDatabase antes de salvar');
 });

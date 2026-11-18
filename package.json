@@ -16,7 +16,8 @@
     "test:legacy": "node --test \"packages/legacy-harness/test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "characterize": "node packages/legacy-harness/scripts/characterize.ts",
-    "legacy:start": "npm --prefix game start"
+    "legacy:start": "npm --prefix game start",
+    "extract-data": "node packages/legacy-harness/scripts/extract-data.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
