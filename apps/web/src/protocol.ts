@@ -22,6 +22,7 @@ export type Command =
   | { type: 'dismissYouth'; id: string }
   | { type: 'promoteYouth'; id: string }
   | { type: 'releaseYouth'; id: string }
+  | { type: 'preContract'; id: string }
   | { type: 'hireScout' }
   | { type: 'sendScout'; id: string; region: string; months: number }
   | { type: 'takeJob'; clubId: string }
@@ -56,6 +57,8 @@ export interface MarketPlayer {
   ask: number;
   wage: number;
   contract: number;
+  /** Último ano de contrato e até 6 meses para o fim. */
+  preContract: boolean;
 }
 
 export interface YouthView {
@@ -72,6 +75,7 @@ export interface MarketView {
   offers: { id: string; player: string; playerId: string; club: ClubRef; type: 'sale' | 'loan'; value: number; expires: string }[];
   players: MarketPlayer[];
   loanedIn: string[];
+  precontracts: { playerId: string; name: string; club: string; wage: number; arrives: string | null }[];
   academy: { level: number; maxLevel: number; upgradeCost: number; lastIntake: string | null; candidates: YouthView[]; roster: YouthView[]; limit: number };
 }
 
@@ -133,7 +137,8 @@ export interface TableRow {
 export interface CompetitionView {
   id: string;
   name: string;
-  format: 'league' | 'knockout';
+  format: 'league' | 'knockout' | 'continental';
+  groups: { name: string; table: TableRow[] }[];
   status: 'running' | 'finished';
   champion: string | null;
   table: TableRow[];

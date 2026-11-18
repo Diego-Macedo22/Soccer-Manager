@@ -385,6 +385,25 @@ function Competitions({ view }: { view: View }) {
               <div class="metric">🏆 {c.champion}</div>
             </section>
           )}
+          {c.groups.map((gr) => (
+            <section class="card" key={gr.name}>
+              <h3>Grupo {gr.name}</h3>
+              <table class="table standings">
+                <tbody>
+                  {gr.table.map((r) => (
+                    <tr key={r.club.id} class={`${r.user ? 'me' : ''} ${r.pos <= 2 ? 'top' : ''} ${r.pos === 3 && c.name.startsWith('Taça') ? 'third' : ''}`}>
+                      <td>{r.pos}</td>
+                      <td>{r.club.name}</td>
+                      <td><b>{r.points}</b></td>
+                      <td>{r.played}</td>
+                      <td>{r.gd}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          ))}
+          {c.groups.length > 0 && <p class="tiny muted span2">{c.name.startsWith('Taça') ? '1º e 2º às quartas • 3º cai para a Copa Sul-Continental' : '1º e 2º às quartas, contra os 3º colocados da Taça Continental'} • mata-mata em ida e volta, sem gol fora • final em jogo único</p>}
           {c.format === 'league' ? (
             <section class="card span2">
               <div class="table-wrap">
@@ -535,6 +554,16 @@ function Market({ view, busy, send }: { view: View; busy: boolean; send: Send })
           </button>
         ))}
       </div>
+      {m.precontracts.length > 0 && (
+        <section class="card">
+          <h3>Pré-contratos assinados</h3>
+          {m.precontracts.map((x) => (
+            <div class="list-row" key={x.playerId}>
+              <div class="grow"><b>{x.name}</b><div class="tiny muted">{x.club} • {brl(x.wage)}/mês • chega em {x.arrives ? fmtDate(x.arrives) : 'breve'}</div></div>
+            </div>
+          ))}
+        </section>
+      )}
       {mode === 'olheiros' ? (
         <Scouts view={view} busy={busy} send={send} open={(id) => { const p = m.players.find((x) => x.id === id); if (p) choose(p); }} />
       ) : mode === 'meus' ? (
@@ -606,6 +635,9 @@ function Market({ view, busy, send }: { view: View; busy: boolean; send: Send })
               <div class="row">
                 <button disabled={busy || !m.windowOpen} onClick={() => send({ type: 'buy', id: pick.id, offer })}>Fazer proposta</button>
                 <button class="ghost" disabled={busy || !m.windowOpen} onClick={() => send({ type: 'loanIn', id: pick.id })}>Pedir empréstimo ({brl(Math.round(pick.value * 0.04))})</button>
+                <button class="ghost" disabled={busy || !pick.preContract} title="Últimos 6 meses de contrato: chega de graça, com luvas de 6 salários" onClick={() => send({ type: 'preContract', id: pick.id })}>
+                  Pré-contrato{pick.preContract ? " (luvas de 6 salários)" : " (só nos últimos 6 meses)"}
+                </button>
                 <button class="ghost" onClick={() => setPick(null)}>Fechar</button>
               </div>
             </>

@@ -19,11 +19,14 @@ import {
   cycleOpenDate,
   findCompetitionDef,
   seasonKey,
+  type CompetitionDef,
+  type ContinentalDef,
   type CycleDef,
   type KnockoutDef,
   type LeagueDef,
 } from './definitions.ts';
 import { floorPowerOfTwo, knockoutPairs, knockoutRoundName, roundRobin } from './schedule.ts';
+import { continentalEntrants, drawGroups, groupStanding, libQuarterPairs, sulaQuarterPairs } from './continental.ts';
 import { applyToTable, emptyTable, sortTable } from './standings.ts';
 import type {
   AgendaEntry,
@@ -235,7 +238,16 @@ function applyResult(
   }
   let winnerId: string | null = raw.home > raw.away ? f.home : raw.away > raw.home ? f.away : null;
   let penalties = false;
-  if (winnerId === null && comp.format === 'knockout') {
+  // Jogo que decide confronto: mata-mata de jogo único ou a volta de um ida e volta.
+  const decisive = isKnockoutFixture(comp, f) && f.leg !== 1;
+  if (decisive && f.leg === 2) {
+    // Agregado, sem gol fora de casa (abolido pela Conmebol em 2022 e pela CBF na Copa do Brasil).
+    const first = comp.fixtureIds.map((id) => state.fixtures[id]!).find((x) => x.round === f.round && x.leg === 1 && x.home === f.away && x.away === f.home);
+    const aggHome = raw.home + (first?.result?.away ?? 0);
+    const aggAway = raw.away + (first?.result?.home ?? 0);
+    winnerId = aggHome > aggAway ? f.home : aggAway > aggHome ? f.away : null;
+  }
+  if (winnerId === null && decisive) {
     penalties = true;
     winnerId =
       raw.winnerId === f.home || raw.winnerId === f.away
@@ -252,15 +264,29 @@ function applyResult(
     if (comp.fixtureIds.every((id) => state.fixtures[id]?.result)) finish(state, comp, sortTable(comp.table)[0]?.clubId ?? null, cycles, events);
     return;
   }
+  if (comp.format === 'continental' && f.group) {
+    applyToTable(comp.table, f.home, f.away, raw.home, raw.away);
+    if (comp.fixtureIds.every((id) => state.fixtures[id]?.result)) startContinentalKnockouts(state, cycles);
+    return;
+  }
   const round = comp.fixtureIds.map((id) => state.fixtures[id]!).filter((x) => x.round === f.round);
   if (round.some((x) => !x.result)) return;
-  const winners = round.map((x) => x.result!.winnerId!);
+  const winners = round.filter((x) => x.leg !== 1).map((x) => x.result!.winnerId!);
   if (winners.length === 1) {
     finish(state, comp, winners[0]!, cycles, events);
     return;
   }
   const { def } = findCompetitionDef(cycles, comp.defId);
-  createKnockoutRound(state, comp, def as KnockoutDef, winners, f.round + 1);
+  if (def.format === 'continental') createContinentalRound(state, comp, def, pairUp(winners, createRng(state.seed).derive(`draw:${comp.id}:${f.round + 1}`)), f.round + 1);
+  else createKnockoutRound(state, comp, def as KnockoutDef, winners, f.round + 1);
+}
+
+function isKnockoutFixture(comp: CompetitionInstance, f: Fixture): boolean {
+  return comp.format === 'knockout' || (comp.format === 'continental' && !f.group);
+}
+
+function pairUp(ids: string[], rng: ReturnType<typeof createRng>): [string, string][] {
+  return knockoutPairs(ids, rng);
 }
 
 function finish(state: CalendarState, comp: CompetitionInstance, championId: string | null, cycles: readonly CycleDef[], events: EventSink): void {
@@ -287,8 +313,14 @@ function openSeason(state: CalendarState, cycle: CycleDef, year: number, events:
   applyPromotion(state, cycle, year - 1, events);
   const key = seasonKey(cycle, year);
   const ids: string[] = [];
+  const entrants = cycle.competitions.some((d) => d.format === 'continental') ? continentalEntrants(state, year) : null;
   for (const def of cycle.competitions) {
-    const comp = def.format === 'league' ? createLeague(state, cycle, def, year, key) : createKnockout(state, cycle, def, year, key);
+    const comp =
+      def.format === 'league'
+        ? createLeague(state, cycle, def, year, key)
+        : def.format === 'knockout'
+          ? createKnockout(state, cycle, def, year, key)
+          : createContinental(state, cycle, def, year, key, entrants![def.entry]);
     if (comp) ids.push(comp.id);
   }
   progress.openedYear = year;
@@ -301,7 +333,7 @@ function firstMatchDate(state: CalendarState, year: number, monthDay: string): I
   return laterOf(`${year}-${monthDay}`, addDays(state.date, 7));
 }
 
-function newInstance(cycle: CycleDef, def: LeagueDef | KnockoutDef, year: number, key: string, participants: string[], first: IsoDate): CompetitionInstance {
+function newInstance(cycle: CycleDef, def: CompetitionDef, year: number, key: string, participants: string[], first: IsoDate): CompetitionInstance {
   return {
     id: competitionInstanceId(def.id, key),
     defId: def.id,
@@ -314,7 +346,7 @@ function newInstance(cycle: CycleDef, def: LeagueDef | KnockoutDef, year: number
     status: 'running',
     firstMatchDate: first,
     fixtureIds: [],
-    table: def.format === 'league' ? emptyTable(participants) : [],
+    table: def.format === 'knockout' ? [] : emptyTable(participants),
     championId: null,
   };
 }
@@ -356,7 +388,67 @@ function createKnockoutRound(state: CalendarState, comp: CompetitionInstance, de
   const date = laterOf(planned, addDays(state.date, 1));
   const rng = createRng(state.seed).derive(`draw:${comp.id}:${round}`);
   const name = knockoutRoundName(clubIds.length);
-  for (const [home, away] of knockoutPairs(clubIds, rng)) addFixture(state, comp, { date, round, roundName: name, home, away });
+  for (const [home, away] of knockoutPairs(clubIds, rng)) {
+    if (def.legs === 2) {
+      addFixture(state, comp, { date, round, roundName: `${name} (ida)`, leg: 1, home, away });
+      addFixture(state, comp, { date: addDays(date, 7), round, roundName: `${name} (volta)`, leg: 2, home: away, away: home });
+    } else addFixture(state, comp, { date, round, roundName: name, home, away });
+  }
+}
+
+function createContinental(state: CalendarState, cycle: CycleDef, def: ContinentalDef, year: number, key: string, entrants: string[]): CompetitionInstance | null {
+  const size = def.groups * 4;
+  if (entrants.length < size) return null;
+  const participants = entrants.slice(0, size);
+  const comp = newInstance(cycle, def, year, key, [...participants].sort(), firstMatchDate(state, year, def.groupsFirst));
+  comp.groups = drawGroups(participants, def.groups, createRng(state.seed).derive(`groups:${comp.id}`));
+  state.competitions[comp.id] = comp;
+  for (const [g, members] of Object.entries(comp.groups)) {
+    const rng = createRng(state.seed).derive(`schedule:${comp.id}:${g}`);
+    for (const p of roundRobin(members, comp.firstMatchDate, def.groupInterval, true, rng)) {
+      addFixture(state, comp, { date: p.date, round: p.round, roundName: `Grupo ${g} • ${p.round}ª rodada`, group: g, home: p.home, away: p.away });
+    }
+  }
+  return comp;
+}
+
+/** Fim da fase de grupos: sorteia as quartas (a Sul-Continental espera os terceiros da Taça). */
+function startContinentalKnockouts(state: CalendarState, cycles: readonly CycleDef[]): void {
+  const groupsDone = (c: CompetitionInstance) => c.fixtureIds.every((id) => state.fixtures[id]?.result || !state.fixtures[id]?.group);
+  for (const comp of Object.values(state.competitions)) {
+    if (comp.format !== 'continental' || comp.knockoutDrawn || comp.status !== 'running' || !groupsDone(comp)) continue;
+    const { def } = findCompetitionDef(cycles, comp.defId);
+    const cdef = def as ContinentalDef;
+    let pairs: [string, string][];
+    if (cdef.entry === 'lib') {
+      comp.thirds = Object.keys(comp.groups ?? {}).sort().map((g) => groupStanding(comp, g)[2]!).filter(Boolean);
+      pairs = libQuarterPairs(comp);
+    } else {
+      const lib = Object.values(state.competitions).find((c) => c.format === 'continental' && c.defId !== comp.defId && c.cycleId === comp.cycleId && c.seasonKey === comp.seasonKey);
+      if (lib && !lib.knockoutDrawn) continue; // espera a Taça terminar os grupos
+      pairs = sulaQuarterPairs(comp, lib?.thirds ?? [], createRng(state.seed).derive(`draw:${comp.id}:ko`));
+    }
+    comp.knockoutDrawn = true;
+    const groupRounds = Math.max(...comp.fixtureIds.map((id) => state.fixtures[id]!.round));
+    createContinentalRound(state, comp, cdef, pairs, groupRounds + 1);
+  }
+}
+
+/** Fase de mata-mata continental: ida e volta, ou jogo único na final. */
+function createContinentalRound(state: CalendarState, comp: CompetitionInstance, def: ContinentalDef, pairs: [string, string][], round: number): void {
+  const groupRounds = Math.max(...comp.fixtureIds.map((id) => state.fixtures[id]!).filter((f) => f.group).map((f) => f.round));
+  const stage = round - groupRounds - 1;
+  const final = pairs.length === 1;
+  const planned = `${comp.startYear}-${final ? def.final : (def.knockout[stage] ?? def.final)}`;
+  const date = laterOf(planned, addDays(state.date, 1));
+  const name = knockoutRoundName(pairs.length * 2);
+  for (const [home, away] of pairs) {
+    if (final) addFixture(state, comp, { date, round, roundName: 'Final (jogo único)', home, away });
+    else {
+      addFixture(state, comp, { date, round, roundName: `${name} (ida)`, leg: 1, home, away });
+      addFixture(state, comp, { date: addDays(date, 7), round, roundName: `${name} (volta)`, leg: 2, home: away, away: home });
+    }
+  }
 }
 
 function applyPromotion(state: CalendarState, cycle: CycleDef, prevYear: number, events: EventSink): void {

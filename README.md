@@ -31,11 +31,16 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 **Carreira (`packages/game`)**
 - Calendário multi-temporada: Brasil de janeiro a dezembro e Europa de agosto a maio, com data global contínua (corrige a data que voltava 7 meses e as ligas europeias que nunca terminavam)
 - Liga Nacional, Copa Nacional e ligas inglesa e espanhola simuladas em paralelo
+- **Copa Nacional** em ida e volta em todas as fases, como a Copa do Brasil a partir da 3ª fase; agregado sem gol fora de casa e pênaltis no empate
+- **Taça Continental** (estilo Libertadores): 16 clubes (8 brasileiros + 8 convidados sul-americanos) em 4 grupos de 4, sorteados por potes; 1º e 2º às quartas (1º contra 2º de outro grupo, decidindo em casa), 3º cai para a Sul-Continental; quartas e semis em ida e volta, final em jogo único
+- **Copa Sul-Continental** (estilo Sul-Americana): 8 brasileiros em 2 grupos; 1º e 2º enfrentam os 3º da Taça nas quartas; final em jogo único
+- **Vagas continentais** pela ordem da CBF: campeão continental, campeão da Sul-Continental, campeão da Copa Nacional e a Série A em ordem (vaga repetida desce na tabela); ninguém joga as duas copas
 - Finanças por mês: folha salarial cobrada (antes nunca era), bilheteria, produtos e aporte da diretoria, com extrato que bate com o caixa
 - Elenco e escalação: formações, adequação à posição, escalação automática e troca de titular por clique
 - Evolução mensal dos jogadores com OVR coerente com os atributos, lesões, desgaste, idade e contratos a cada temporada
 - Save versionado, com migrações e conversão de saves da v0.5 (a importação pela interface ainda falta)
 - **Mercado** (janelas em janeiro e julho): compra com chance de aceite pela oferta (fórmula da v0.5), empréstimo até a próxima temporada por 4% do valor, agentes livres, propostas de outros clubes (venda ou empréstimo) e mercado da IA movimentando os outros clubes
+- **Pré-contrato**: nos últimos 6 meses de contrato (Lei Pelé e regra Bosman), paga luvas de 6 salários e o jogador chega de graça quando o vínculo termina; a chance de aceitar depende da reputação dos clubes e da moral do jogador
 - **Contratos**: renovação por 3 temporadas, rescisão (metade dos salários restantes) e saída como agente livre quando o contrato vence; a IA renova os dela
 - **Base**: relatório a cada 3 meses com 5 a 8 jovens de 14 a 18 anos, OVR e potencial ligados ao nível da instalação (1 a 10), limite de 45 atletas, promoção ao profissional
 - **Olheiros**: até 6, contratados por 1,5 mi + 1,35 mi por olheiro já contratado; missões de 1 a 6 meses por região (Brasil, Inglaterra, Espanha, América do Sul ou agentes livres) e relatório com estimativas de OVR/POT que erram conforme a precisão
@@ -54,7 +59,7 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 **Base de dados (`packages/data`)**
 - Clubes e jogadores com nomes fictícios, extraídos do legado e validados por testes
 
-**Ainda falta na v0.6** (existe só na v0.5): pré-contrato, competições continentais, partida ao vivo com narração, PWA.
+**Ainda falta na v0.6** (existe só na v0.5): partida ao vivo com narração e PWA.
 
 ## O que existe na v0.5 legado
 
@@ -178,7 +183,7 @@ docs/
 
 ## Próximos passos
 
-1. **Fase 3, restante:** pré-contrato, competições continentais, importação de save da v0.5 pela interface e PWA.
+1. **Fase 3, restante:** importação de save da v0.5 pela interface e PWA.
 2. **Fase 4:** motor de partida próprio, determinístico, que gera uma linha do tempo de eventos, com melhores momentos em 2D e narração.
 3. **Fases 5 a 7:** partidas em 3D com **Three.js**, usando modelos e animações do Blender + Mixamo, com câmera de transmissão e replays.
 4. **Fase 8:** controles por teclado, gamepad e toque.

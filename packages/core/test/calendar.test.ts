@@ -138,10 +138,24 @@ describe('avanço do calendário', () => {
     advanceTo(s, '2026-12-31', { play });
     const copa = s.competitions['copa@2026']!;
     assert.equal(copa.status, 'finished');
-    assert.equal(copa.fixtureIds.length, 31);
-    assert.ok(copa.fixtureIds.every((id) => s.fixtures[id]!.result?.winnerId));
-    const finalists = copa.fixtureIds.map((id) => s.fixtures[id]!).find((f) => f.roundName === 'Final')!;
+    // Ida e volta em todas as fases (31 confrontos × 2 jogos), como na Copa do Brasil.
+    assert.equal(copa.fixtureIds.length, 62);
+    assert.ok(copa.fixtureIds.every((id) => s.fixtures[id]!.result && (s.fixtures[id]!.leg === 1 || s.fixtures[id]!.result!.winnerId)));
+    const finalists = copa.fixtureIds.map((id) => s.fixtures[id]!).find((f) => f.roundName === 'Final (volta)')!;
     assert.equal(copa.championId, finalists.result!.winnerId);
+  });
+
+  test('ida e volta: o agregado decide, sem gol fora de casa; empate no agregado vai aos pênaltis', () => {
+    const s = world();
+    advanceTo(s, '2026-12-31', { play });
+    const fx = Object.values(s.fixtures).filter((f) => f.competitionId === 'copa@2026');
+    for (const back of fx.filter((f) => f.leg === 2)) {
+      const first = fx.find((f) => f.leg === 1 && f.round === back.round && f.home === back.away)!;
+      const aggBack = back.result!.home + first.result!.away;
+      const aggFirst = back.result!.away + first.result!.home;
+      if (aggBack !== aggFirst) assert.equal(back.result!.winnerId, aggBack > aggFirst ? back.home : back.away);
+      else assert.equal(back.result!.penalties, true);
+    }
   });
 
   test('B16: a Copa Nacional só tem clubes brasileiros', () => {

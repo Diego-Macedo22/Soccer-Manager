@@ -46,9 +46,10 @@ export function careerSquad(state: CareerState, db: Database, clubId: string): S
     }));
 }
 
-function calendarClubsFrom(db: Database, divisions: Record<string, string | null> = {}) {
+export function calendarClubsFrom(db: Database, divisions: Record<string, string | null> = {}) {
   return db.clubs
-    .map((c) => ({ id: c.id, country: c.country, division: (c.id in divisions ? divisions[c.id] : c.division) ?? null, rep: c.rep }))
+    // Convidados sul-americanos entram sem liga (divisão INT): só disputam as copas continentais.
+    .map((c) => ({ id: c.id, country: c.country, division: (c.id in divisions ? divisions[c.id] : c.division) ?? (c.guest ? 'INT' : null), rep: c.rep }))
     .filter((c): c is { id: string; country: string; division: string; rep: number } => c.division !== null);
 }
 

@@ -29,9 +29,30 @@ export interface KnockoutDef {
   size: number;
   firstMatch: string;
   roundGapDays: number;
+  /** 2 = ida e volta em todas as fases (Copa do Brasil a partir da 3ª fase). */
+  legs?: 1 | 2;
 }
 
-export type CompetitionDef = LeagueDef | KnockoutDef;
+/**
+ * Copa continental: fase de grupos (4 clubes, turno e returno) e mata-mata em
+ * ida e volta, sem gol fora de casa (abolido pela Conmebol em 2022), com final
+ * em jogo único. `entry` define quem se classifica (continental.ts).
+ */
+export interface ContinentalDef {
+  format: 'continental';
+  id: string;
+  name: string;
+  entry: 'lib' | 'sula';
+  /** Número de grupos de 4. */
+  groups: number;
+  groupsFirst: string;
+  groupInterval: number;
+  /** Datas (MM-DD) da ida de cada fase de mata-mata antes da final; a volta é 7 dias depois. */
+  knockout: string[];
+  final: string;
+}
+
+export type CompetitionDef = LeagueDef | KnockoutDef | ContinentalDef;
 
 export interface PromotionRule {
   /** Id da liga de cima e da de baixo (definições do mesmo ciclo). */
@@ -86,7 +107,11 @@ export const DEFAULT_CYCLES: readonly CycleDef[] = [
     competitions: [
       { format: 'league', id: 'brA', name: 'Liga Nacional Série A', division: 'A', firstMatch: '02-01', intervalDays: 7, doubleRoundRobin: true },
       { format: 'league', id: 'brB', name: 'Liga Nacional Série B', division: 'B', firstMatch: '02-01', intervalDays: 7, doubleRoundRobin: true },
-      { format: 'knockout', id: 'copa', name: 'Copa Nacional', country: 'BR', size: 32, firstMatch: '03-10', roundGapDays: 28 },
+      { format: 'knockout', id: 'copa', name: 'Copa Nacional', country: 'BR', size: 32, firstMatch: '03-10', roundGapDays: 28, legs: 2 },
+      // Taça Continental (Libertadores): 16 clubes, 4 grupos; 1º e 2º às quartas, 3º à Sul-Continental.
+      { format: 'continental', id: 'lib', name: 'Taça Continental', entry: 'lib', groups: 4, groupsFirst: '04-08', groupInterval: 7, knockout: ['08-05', '09-23'], final: '11-28' },
+      // Copa Sul-Continental (Sul-Americana): 8 clubes, 2 grupos; 1º e 2º encaram os 3º da Taça nas quartas.
+      { format: 'continental', id: 'sula', name: 'Copa Sul-Continental', entry: 'sula', groups: 2, groupsFirst: '04-09', groupInterval: 7, knockout: ['08-06', '09-24'], final: '11-21' },
     ],
     promotion: [{ upper: 'brA', lower: 'brB', count: 4 }],
   },

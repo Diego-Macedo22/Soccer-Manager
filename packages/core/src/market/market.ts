@@ -50,8 +50,21 @@ export interface Loan {
   since: IsoDate;
 }
 
+/** Pré-contrato: o jogador chega de graça quando o contrato atual termina. */
+export interface PreContract {
+  playerId: string;
+  /** Clube que assinou (o do usuário na época). */
+  to: string;
+  wage: number;
+  signedOn: IsoDate;
+}
+
+/** Últimos 6 meses de contrato (Lei Pelé, art. 28 § 7º; regra Bosman na Europa). */
+export const PRECONTRACT_DAYS = 183;
+
 export interface MarketState {
   offers: IncomingOffer[];
+  precontracts?: PreContract[];
   loans: Loan[];
   /** Jogadores criados durante a carreira (base): nome e posições, que não estão na base estática. */
   extra: Record<string, { name: string; positions: Position[] }>;
@@ -61,7 +74,7 @@ export interface MarketState {
 }
 
 export function createMarket(): MarketState {
-  return { offers: [], loans: [], extra: {}, academy: { level: 1, lastIntake: null, candidates: [], roster: [] }, seq: 0 };
+  return { offers: [], precontracts: [], loans: [], extra: {}, academy: { level: 1, lastIntake: null, candidates: [], roster: [] }, seq: 0 };
 }
 
 /** Janelas de transferência: janeiro e julho (como na v0.5). */

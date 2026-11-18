@@ -29,6 +29,10 @@ export interface Fixture {
   date: IsoDate;
   round: number;
   roundName: string;
+  /** Mata-mata em ida e volta: 1 = ida, 2 = volta (o vencedor do confronto fica no resultado da volta). */
+  leg?: 1 | 2;
+  /** Fase de grupos das copas continentais. */
+  group?: string;
   home: string;
   away: string;
   result: MatchResult | null;
@@ -53,7 +57,7 @@ export interface CompetitionInstance {
   cycleId: string;
   seasonKey: string;
   startYear: number;
-  format: 'league' | 'knockout';
+  format: 'league' | 'knockout' | 'continental';
   participants: string[];
   status: 'running' | 'finished';
   /** Data do primeiro jogo (pode ser adiada se a temporada abriu atrasada). */
@@ -62,6 +66,12 @@ export interface CompetitionInstance {
   /** Classificação (apenas ligas). */
   table: StandingRow[];
   championId: string | null;
+  /** Copas continentais: membros de cada grupo. */
+  groups?: Record<string, string[]>;
+  /** Copas continentais: 3º colocados dos grupos (vão para a Sul-Continental). */
+  thirds?: string[];
+  /** Copas continentais: a fase de grupos acabou e o mata-mata já foi sorteado. */
+  knockoutDrawn?: boolean;
 }
 
 export type AgendaEntry =

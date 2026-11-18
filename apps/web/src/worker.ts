@@ -38,9 +38,10 @@ function marketView(g: Game): MarketView {
     offers: m.offers.map((o) => ({ id: o.id, player: g.playerName(o.playerId), playerId: o.playerId, club: ref(o.fromClubId), type: o.type, value: o.value, expires: o.expires })),
     players: Object.entries(s.players)
       .filter(([id, d]) => d.clubId !== s.userClubId)
-      .map(([id, d]) => ({ id, name: g.playerName(id), club: d.clubId ? ref(d.clubId) : null, pos: d.pos, age: d.age, ovr: d.ovr, pot: d.pot, value: g.valueOf(id), ask: g.askingPrice(id), wage: d.wage, contract: d.contract }))
+      .map(([id, d]) => ({ id, name: g.playerName(id), club: d.clubId ? ref(d.clubId) : null, pos: d.pos, age: d.age, ovr: d.ovr, pot: d.pot, value: g.valueOf(id), ask: g.askingPrice(id), wage: d.wage, contract: d.contract, preContract: g.preContractOpen(id) }))
       .sort((a, b) => b.ovr - a.ovr),
     loanedIn: m.loans.filter((l) => l.to === s.userClubId).map((l) => l.playerId),
+    precontracts: (m.precontracts ?? []).map((x) => ({ playerId: x.playerId, name: g.playerName(x.playerId), club: ref(s.players[x.playerId]?.clubId ?? '').name, wage: x.wage, arrives: g.contractEnd(x.playerId) })),
     academy: {
       level: m.academy.level, maxLevel: ACADEMY_MAX_LEVEL, upgradeCost: academyUpgradeCost(m.academy.level), lastIntake: m.academy.lastIntake,
       candidates: m.academy.candidates.map((y) => ({ id: y.id, name: y.name, pos: y.pos, age: y.age, ovr: y.ovr, pot: y.pot })),
@@ -76,6 +77,10 @@ function boardView(g: Game): BoardView {
     scoutCost: scoutHireCost(b.scouts.length), scoutLimit: SCOUT_LIMIT,
     regions: Object.entries(SCOUT_REGIONS),
   };
+}
+
+function rows(table: ReturnType<typeof sortTable>, user: string) {
+  return table.map((r, i) => ({ pos: i + 1, club: ref(r.clubId), played: r.played, won: r.won, drawn: r.drawn, lost: r.lost, gd: r.goalsFor - r.goalsAgainst, points: r.points, user: r.clubId === user }));
 }
 
 function buildView(g: Game): View {
@@ -114,8 +119,9 @@ function buildView(g: Game): View {
       format: c.format,
       status: c.status,
       champion: c.championId ? ref(c.championId).name : null,
-      table: sortTable(c.table).map((r, i) => ({ pos: i + 1, club: ref(r.clubId), played: r.played, won: r.won, drawn: r.drawn, lost: r.lost, gd: r.goalsFor - r.goalsAgainst, points: r.points, user: r.clubId === user })),
-      userFixtures: c.fixtureIds.map((id) => cal.fixtures[id]!).filter((f) => f && (f.home === user || f.away === user || c.format === 'knockout')).slice(-40).map((f) => fixtureView(g, f)),
+      table: c.format === 'league' ? rows(sortTable(c.table), user) : [],
+      groups: Object.entries(c.groups ?? {}).map(([name, members]) => ({ name, table: rows(sortTable(c.table.filter((r) => members.includes(r.clubId))), user) })),
+      userFixtures: c.fixtureIds.map((id) => cal.fixtures[id]!).filter((f) => f && (f.home === user || f.away === user || (c.format !== 'league' && !f.group))).slice(-40).map((f) => fixtureView(g, f)),
     })),
     finance: {
       balance: s.finance.balance,
@@ -225,6 +231,9 @@ async function handle(cmd: Command): Promise<Reply> {
       break;
     case 'promoteYouth':
       toast = said(g.promoteYouth(cmd.id), 'Jogador promovido ao profissional.');
+      break;
+    case 'preContract':
+      toast = said(g.preContract(cmd.id), 'Pré-contrato assinado: ele chega quando o contrato atual terminar.');
       break;
     case 'hireScout':
       toast = g.state.board.scouts.length >= SCOUT_LIMIT ? 'Limite de olheiros atingido.' : said(g.hireScout(), 'Olheiro contratado.');

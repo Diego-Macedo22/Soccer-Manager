@@ -165,3 +165,4 @@ button.ghost { background: transparent; }
 .bar { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--panel3); overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--club); transition: width .4s ease; }
 @media (max-width: 420px) { .tabs button { font-size: 9.5px; } }
+.standings tr.third td:first-child { box-shadow: inset 3px 0 0 var(--gold1); }

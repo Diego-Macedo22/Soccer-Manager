@@ -47,6 +47,9 @@ import {
   youthRatings,
   type Position,
   SCOUT_LIMIT,
+  PRECONTRACT_DAYS,
+  cycleOpenDate,
+  DEFAULT_CYCLES,
   boardObjectives,
   createFinance,
   jobRequirement,
@@ -109,6 +112,10 @@ export class Game {
     this.base = new Map(db.players.map((p) => [p.id, p]));
     this.reps = new Map(db.clubs.map((c) => [c.id, c.rep]));
     if (!state.board.objectives.length) state.board.objectives = boardObjectives(this.club());
+    // Saves anteriores às copas continentais não tinham os convidados no calendário.
+    for (const c of db.clubs) {
+      if (c.guest && !state.calendar.clubs.some((x) => x.id === c.id)) state.calendar.clubs.push({ id: c.id, country: c.country, division: 'INT', rep: c.rep });
+    }
     this.bindFinance();
   }
 
@@ -301,6 +308,44 @@ export class Game {
     return { ok: true };
   }
 
+  /** Data em que o contrato atual do jogador termina (abertura da próxima temporada do clube dele). */
+  contractEnd(id: string): IsoDate | null {
+    const p = this.state.players[id];
+    if (!p?.clubId || p.contract > 1) return null;
+    const country = this.db.clubs.find((c) => c.id === p.clubId)?.country;
+    const cycle = DEFAULT_CYCLES.find((c) => c.id === country) ?? DEFAULT_CYCLES[0]!;
+    const year = Number(this.date.slice(0, 4));
+    const opens = [year, year + 1, year + 2].map((y) => cycleOpenDate(cycle, y)).filter((d) => d > this.date);
+    // A primeira abertura da carreira não desconta contrato (seasonOpened): o fim é a seguinte.
+    const next = this.state.calendar.cycles[cycle.id]?.openedYear == null ? opens[1]! : opens[0]!;
+    return p.contract === 1 ? next : this.date;
+  }
+
+  /** Pode assinar pré-contrato: último ano de contrato e no máximo 6 meses para o fim. */
+  preContractOpen(id: string): boolean {
+    const end = this.contractEnd(id);
+    const p = this.state.players[id];
+    if (!end || !p || p.clubId === this.state.userClubId || this.isLoaned(id)) return false;
+    if ((this.state.market.precontracts ?? []).some((x) => x.playerId === id)) return false;
+    return (Date.parse(end) - Date.parse(this.date)) / 86_400_000 <= PRECONTRACT_DAYS;
+  }
+
+  /** Pré-contrato: paga luvas (6 salários, como na v0.5) e o jogador chega quando o contrato acaba. */
+  preContract(id: string): MarketResult {
+    if (!this.preContractOpen(id)) return fail('not-available');
+    const p = this.state.players[id]!;
+    const wage = Math.max(p.wage, wageDemand(p.ovr));
+    const rng = createRng(this.state.seed).derive(`pre:${id}:${this.date}`);
+    // Clube maior convence mais fácil; jogador infeliz (moral baixa) também.
+    const chance = clamp(0.5 + (this.club().rep - (this.reps.get(p.clubId!) ?? 60)) / 30 + (p.morale < 60 ? 0.15 : 0), 0.1, 0.9);
+    if (!rng.chance(chance)) return fail('refused');
+    const r = spend(this.state.finance, { date: this.date, kind: 'bonus', label: 'Luvas de pré-contrato', amount: wage * 6, detail: this.playerName(id) });
+    if (!r.ok) return fail('no-funds');
+    (this.state.market.precontracts ??= []).push({ playerId: id, to: this.state.userClubId, wage, signedOn: this.date });
+    this.news(this.date, 'Pré-contrato assinado', `${this.playerName(id)} chega quando o contrato atual terminar.`);
+    return { ok: true };
+  }
+
   /** Agente livre: assina pelo salário pedido. */
   signFree(id: string): MarketResult {
     const p = this.state.players[id];
@@ -382,7 +427,8 @@ export class Game {
     if (rng.chance(0.3)) {
       const from = rng.pick(clubs);
       const to = rng.pick(clubs.filter((c) => c.id !== from.id));
-      const pool = this.squad(from.id).filter((p) => !this.isLoaned(p.id) && (this.state.players[p.id]?.age ?? 99) < 34).sort((a, b) => a.id.localeCompare(b.id));
+      const signed = new Set((m.precontracts ?? []).map((x) => x.playerId));
+      const pool = this.squad(from.id).filter((p) => !this.isLoaned(p.id) && !signed.has(p.id) && (this.state.players[p.id]?.age ?? 99) < 34).sort((a, b) => a.id.localeCompare(b.id));
       if (pool.length > MIN_SQUAD + 2 && this.squad(to.id).length < MAX_SQUAD) {
         const p = rng.pick(pool);
         this.moveTo(p.id, to.id);
@@ -407,11 +453,21 @@ export class Game {
       }
     }
     m.loans = m.loans.filter((x) => !ending.includes(x));
+    const pre = new Map((m.precontracts ?? []).map((x) => [x.playerId, x]));
     const rng = createRng(this.state.seed).derive(`contracts:${date}:${cycleId}`);
     const academy = new Set(m.academy.roster);
     for (const [id, p] of Object.entries(this.state.players).sort(([a], [b]) => a.localeCompare(b))) {
       if (!p.clubId || !clubs.has(p.clubId) || p.contract > 0) continue;
-      if (p.clubId === user && !academy.has(id)) {
+      const deal = pre.get(id);
+      if (deal) {
+        p.clubId = deal.to;
+        p.wage = deal.wage;
+        p.contract = 3;
+        p.morale = 82;
+        pre.delete(id);
+        userChanged ||= deal.to === user;
+        this.news(date, 'Reforço por pré-contrato', `${this.playerName(id)} se apresenta sem custo de transferência.`);
+      } else if (p.clubId === user && !academy.has(id)) {
         p.clubId = null;
         userChanged = true;
         this.news(date, 'Contrato encerrado', `${this.playerName(id)} sai como agente livre.`);
@@ -419,6 +475,7 @@ export class Game {
         p.contract = rng.int(2, 4);
       }
     }
+    m.precontracts = [...pre.values()];
     if (userChanged) this.changed();
   }
 
@@ -522,8 +579,8 @@ export class Game {
     const home = f.home === this.state.userClubId;
     const mine = home ? r.home : r.away;
     const theirs = home ? r.away : r.home;
-    const won = r.winnerId ? r.winnerId === this.state.userClubId : mine > theirs;
-    const outcome: MatchOutcome = mine === theirs && !r.winnerId ? 'draw' : won ? 'win' : 'loss';
+    // Pela partida, não pelo confronto: perder a volta e passar no agregado ainda é derrota.
+    const outcome: MatchOutcome = mine > theirs ? 'win' : mine < theirs ? 'loss' : 'draw';
     recordOutcome(this.state.board, outcome, this.reps.get(home ? f.away : f.home) ?? 60, this.club().rep);
     const morale = outcome === 'win' ? 3 : outcome === 'loss' ? -3 : 0;
     for (const p of this.squad()) this.state.players[p.id]!.morale = clamp(this.state.players[p.id]!.morale + morale, 30, 99);

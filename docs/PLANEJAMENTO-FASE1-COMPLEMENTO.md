@@ -749,9 +749,13 @@ Portados da v0.5 com as mesmas fórmulas: chance de compra pela oferta, emprést
 
 Da v0.5: objetivos com pesos (liga 45, copa 25, finanças 20, elenco 10), confiança da diretoria (objetivos × .45 + últimos 8 jogos × .4 + caixa × .15) e da torcida, nota do técnico por resultado, exigência mínima de nota por clube, olheiros com custo crescente e relatório de 4 + nível nomes. Novos: avaliação no fim da liga com demissão (avaliação < 45 e confiança < 45) e propostas de emprego; a confiança da torcida alimenta bilheteria e produtos; troca de clube recria caixa, elenco e objetivos. Save v3. Testes em `packages/game/test/board.test.ts`.
 
+### Copas continentais, Copa Nacional em ida e volta e pré-contrato: ✅
+
+Bugs de regulamento da v0.5 corrigidos: a Taça Continental era um pontos corridos entre o clube do usuário e 5 convidados; a Sul-Continental tinha grupos fixos no código; a vaga ia do 1º ao 4º (Taça) e do 5º ao 8º (Sul), sem vaga para o campeão da Copa; a Copa Nacional era em jogo único. Agora (`packages/core/src/calendar/continental.ts`): vagas pela ordem da CBF, grupos por potes, 3º da Taça caindo na Sul-Continental, ida e volta sem gol fora e final única. Escala reduzida (16 e 8 clubes) por causa do universo de 48 clubes sul-americanos. Pré-contrato nos últimos 6 meses (Lei Pelé/Bosman). Testes em `packages/game/test/continental.test.ts`.
+
 **Falta na Fase 3:**
 
-- Pré-contrato e competições continentais.
+- Nada do legado além da partida ao vivo (Fase 4).
 - Partida ao vivo com narração (depende do motor da Fase 4).
 - Importar save da v0.5 pela interface.
 - PWA (manifest e service worker).
