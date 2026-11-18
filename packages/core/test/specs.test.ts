@@ -27,10 +27,12 @@ describe('finanças: integrações futuras', () => {
   test.todo('extrato resumido por temporada no save, preservando a invariante de caixa (B7)');
 });
 
-describe('elenco e escalação (core/squad)', () => {
-  test.todo('B6: a escalação do usuário só muda por ação do usuário ou com aviso explícito (lesão, venda)');
-  test.todo('B6: lesão retira só o jogador afetado e sugere substituto, sem refazer o time');
-  test.todo('B5: selecionar dois jogadores e trocar funciona (estado de seleção vive na UI, não no save)');
+// Elenco e escalação (B6 e a operação de troca de B5): implementado na Fase 2 —
+// ver test/squad.test.ts.
+
+describe('elenco: interface (Fase 3)', () => {
+  test.todo('B5: a seleção para troca vive no estado da tela, nunca no save, e renderizar não a apaga');
+  test.todo('as mudanças de reconcileLineup aparecem como aviso ao usuário (ex.: "lesionado → entra Fulano")');
 });
 
 describe('partida (match-engine)', () => {

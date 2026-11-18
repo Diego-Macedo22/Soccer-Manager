@@ -521,10 +521,45 @@ No modo manager, o motor roda acelerado e grava a timeline. No modo jogável, el
 - O aporte vem só a partir da segunda temporada e continua correto depois de recarregar.
 - A bilheteria do jogo ao vivo entra na data do jogo.
 
+### Elenco e escalação (`packages/core/src/squad/`): ✅
+
+**Regras portadas da v0.3 e da v0.4:**
+
+- Posições, zonas e adaptação: posição natural (+1), secundária (0), improviso (−1 a −5, aliviado por atributos), goleiro ↔ linha proibido.
+- OVR na função, com piso de 40.
+- As 6 formações com as mesmas coordenadas.
+- Pontuação da escalação automática: a posição natural vale mais que um OVR maior improvisado.
+
+**Escalação:**
+
+- `Lineup` tem XI, banco de 9 e reservas. Todo jogador do elenco aparece exatamente uma vez, e os lesionados ficam nas reservas.
+- `autoLineup` só roda quando pedido.
+- `reconcileLineup` (correção de B6) mexe apenas no que ficou inválido:
+  1. Tira quem saiu do clube ou se lesionou.
+  2. Preenche o slot vago com o melhor do banco para aquela posição; se ninguém do banco serve, usa as reservas.
+  3. Repõe no banco só as vagas abertas agora.
+  4. Coloca contratações nas reservas.
+
+  Ela devolve a lista de mudanças para a interface avisar o usuário. Uma escalação válida não muda.
+- `swapPlayers` é a operação do "⇄ Trocar" (B5). Recusa lesionado no time, goleiro na linha e jogador fora do elenco.
+- `changeFormation` mantém os mesmos titulares sempre que possível.
+
+**Testes** (`packages/core/test/squad.test.ts`):
+
+- Paridade das regras de adaptação.
+- Uma lesão troca só o slot afetado, usando o reserva natural da posição.
+- A escolha do usuário sobrevive a uma venda em outra posição. O legado voltaria a escalar o time "ideal".
+- Contratação entra nas reservas.
+- Reconciliar duas vezes dá o mesmo resultado.
+- Propriedade com 300 eventos aleatórios (lesões, vendas, contratações, trocas, passagem de tempo): a escalação nunca fica inválida e cada jogador aparece uma vez.
+- A troca de 4-2-3-1 para 4-4-2 mantém os titulares.
+
+**Fica para a Fase 3:** guardar a seleção do "⇄ Trocar" no estado da tela e mostrar as mudanças como aviso.
+
 ### Próximos módulos da Fase 2
 
 1. ~~**Finanças**~~ ✅
-2. **Elenco e escalação:** sem refazer o XI do usuário (B6).
+2. ~~**Elenco e escalação**~~ ✅
 3. **Evolução:** OVR coerente com os atributos (B17).
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
 5. **Save:** versão de schema e migrações (B7).
