@@ -741,9 +741,13 @@ npm run web:build  # apps/web/dist
 
 **O CI agora também checa os tipos e faz o build da interface.**
 
+### Mercado e base (`packages/core/src/market/`, `Game`): ✅
+
+Portados da v0.5 com as mesmas fórmulas: chance de compra pela oferta, empréstimo por 4% do valor, propostas recebidas de 80% a 125% do valor, mercado da IA, relatório da base a cada 90 dias com OVR/POT pelo nível (1–10). Novos: contratos vencem (usuário perde o jogador, IA renova), rescisão paga metade dos salários restantes, empréstimos voltam na abertura da temporada. Save v2 (migração v1 → v2 cria o mercado). Testes em `packages/game/test/market.test.ts` com invariantes de transição em cada ação.
+
 **Falta na Fase 3:**
 
-- Telas de mercado, olheiros e base (dependem dos módulos ainda não migrados).
+- Olheiros, pré-contrato, competições continentais e objetivos da diretoria.
 - Partida ao vivo com narração (depende do motor da Fase 4).
 - Importar save da v0.5 pela interface.
 - PWA (manifest e service worker).

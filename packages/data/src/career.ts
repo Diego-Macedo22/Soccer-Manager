@@ -4,6 +4,7 @@
 import {
   DEFAULT_FORMATION,
   SCHEMA_VERSION,
+  createMarket,
   autoLineup,
   createCalendar,
   createFinance,
@@ -65,6 +66,7 @@ export function createCareer(db: Database, o: NewCareerOptions): CareerState {
     finance: createFinance(club.id, club.baseBudget),
     lineup: { formation: DEFAULT_FORMATION, xi: [], bench: [], reserves: [] },
     players,
+    market: createMarket(),
     news: [{ date: `${startYear}-01-05`, title: 'Bem-vindo ao clube', body: `${o.manager} assume o ${club.name}.` }],
   };
   state.lineup = autoLineup(careerSquad(state, db, club.id), DEFAULT_FORMATION, state.calendar.date);

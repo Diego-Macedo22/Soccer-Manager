@@ -9,7 +9,50 @@ export type Command =
   | { type: 'advanceDays'; days: number }
   | { type: 'swap'; a: string; b: string }
   | { type: 'formation'; key: string }
-  | { type: 'auto' };
+  | { type: 'auto' }
+  | { type: 'buy'; id: string; offer: number }
+  | { type: 'loanIn'; id: string }
+  | { type: 'signFree'; id: string }
+  | { type: 'renew'; id: string }
+  | { type: 'release'; id: string }
+  | { type: 'acceptOffer'; id: string }
+  | { type: 'rejectOffer'; id: string }
+  | { type: 'upgradeAcademy' }
+  | { type: 'signYouth'; id: string }
+  | { type: 'dismissYouth'; id: string }
+  | { type: 'promoteYouth'; id: string }
+  | { type: 'releaseYouth'; id: string };
+
+export interface MarketPlayer {
+  id: string;
+  name: string;
+  club: ClubRef | null;
+  pos: Position;
+  age: number;
+  ovr: number;
+  pot: number;
+  value: number;
+  ask: number;
+  wage: number;
+  contract: number;
+}
+
+export interface YouthView {
+  id: string;
+  name: string;
+  pos: Position;
+  age: number;
+  ovr: number;
+  pot: number;
+}
+
+export interface MarketView {
+  windowOpen: boolean;
+  offers: { id: string; player: string; playerId: string; club: ClubRef; type: 'sale' | 'loan'; value: number; expires: string }[];
+  players: MarketPlayer[];
+  loanedIn: string[];
+  academy: { level: number; maxLevel: number; upgradeCost: number; lastIntake: string | null; candidates: YouthView[]; roster: YouthView[]; limit: number };
+}
 
 export type Reply =
   | { type: 'init'; hasSave: boolean; clubs: ClubOption[] }
@@ -91,4 +134,5 @@ export interface View {
   competitions: CompetitionView[];
   finance: { balance: number; wages: number; totals: Record<string, number>; entries: { date: string; label: string; value: number; detail?: string }[] };
   saveSize: number;
+  market: MarketView;
 }

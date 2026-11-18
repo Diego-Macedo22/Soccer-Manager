@@ -68,7 +68,7 @@ h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; text-transform: upperc
 .pill { padding: 6px 10px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; white-space: nowrap; }
 .continue { flex: none; }
 .tabs {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   background: var(--panel); border-top: 1px solid var(--line);
 }
 .tabs button { border: 0; background: transparent; display: grid; justify-items: center; gap: 2px; font-size: 11px; padding: 6px 2px; }
@@ -151,3 +151,14 @@ h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; text-transform: upperc
   padding: 10px 16px; border-radius: 10px; background: var(--panel3); border: 1px solid var(--accent); box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
 }
 @media (min-width: 768px) { .toast { bottom: 24px; } }
+
+/* Mercado e base */
+.list-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.list-row:last-child { border-bottom: 0; }
+.grow { flex: 1; min-width: 140px; }
+.filters input, .filters select { min-height: 44px; flex: 1; min-width: 120px; }
+.sheet { position: sticky; bottom: 72px; box-shadow: 0 -8px 24px rgb(0 0 0 / .35); }
+.sheet input[type=range] { width: 100%; min-height: 44px; }
+@media (min-width: 768px) { .sheet { bottom: 12px; } }
+button.ghost { background: transparent; }
+.row > button.active { border-color: var(--club); background: color-mix(in srgb, var(--club) 22%, transparent); }

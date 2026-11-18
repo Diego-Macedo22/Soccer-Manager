@@ -4,11 +4,12 @@
  * Responde cada comando com uma `View` pronta para desenhar e grava o save no
  * IndexedDB depois de cada ação (pontos de controle, nunca a cada minuto).
  */
-import { FORMATIONS, encodeSave, sortTable, totalsByKind, type Fixture } from '@sm/core';
+import { ACADEMY_LIMIT, ACADEMY_MAX_LEVEL, FORMATIONS, academyUpgradeCost, encodeSave, sortTable, totalsByKind, type Fixture } from '@sm/core';
+import type { MarketResult } from '@sm/game';
 import { loadDatabase, type Database } from '@sm/data';
 import { Game } from '@sm/game';
 import { IdbStore } from './idb-store.ts';
-import type { ClubRef, Command, FixtureView, Reply, View } from './protocol.ts';
+import type { ClubRef, Command, FixtureView, MarketView, Reply, View } from './protocol.ts';
 
 const SLOT = 'carreira-1';
 const db: Database = loadDatabase();
@@ -24,6 +25,42 @@ function fixtureView(g: Game, f: Fixture): FixtureView {
   const score = f.result ? `${f.result.home} x ${f.result.away}${f.result.penalties ? ' (pên.)' : ''}` : null;
   return { id: f.id, date: f.date, competition: comp?.name ?? '', round: f.roundName, home: ref(f.home), away: ref(f.away), score };
 }
+
+function marketView(g: Game): MarketView {
+  const s = g.state;
+  const m = s.market;
+  const youth = (id: string) => {
+    const d = s.players[id]!;
+    return { id, name: g.playerName(id), pos: d.pos, age: d.age, ovr: d.ovr, pot: d.pot };
+  };
+  return {
+    windowOpen: g.windowOpen(),
+    offers: m.offers.map((o) => ({ id: o.id, player: g.playerName(o.playerId), playerId: o.playerId, club: ref(o.fromClubId), type: o.type, value: o.value, expires: o.expires })),
+    players: Object.entries(s.players)
+      .filter(([id, d]) => d.clubId !== s.userClubId)
+      .map(([id, d]) => ({ id, name: g.playerName(id), club: d.clubId ? ref(d.clubId) : null, pos: d.pos, age: d.age, ovr: d.ovr, pot: d.pot, value: g.valueOf(id), ask: g.askingPrice(id), wage: d.wage, contract: d.contract }))
+      .sort((a, b) => b.ovr - a.ovr),
+    loanedIn: m.loans.filter((l) => l.to === s.userClubId).map((l) => l.playerId),
+    academy: {
+      level: m.academy.level, maxLevel: ACADEMY_MAX_LEVEL, upgradeCost: academyUpgradeCost(m.academy.level), lastIntake: m.academy.lastIntake,
+      candidates: m.academy.candidates.map((y) => ({ id: y.id, name: y.name, pos: y.pos, age: y.age, ovr: y.ovr, pot: y.pot })),
+      roster: m.academy.roster.map(youth), limit: ACADEMY_LIMIT,
+    },
+  };
+}
+
+const REASON: Record<Exclude<MarketResult, { ok: true }>['reason'], string> = {
+  'not-available': 'Negócio indisponível.',
+  'window-closed': 'A janela de transferências está fechada (abre em janeiro e julho).',
+  'squad-full': 'O elenco está cheio.',
+  'squad-short': 'O elenco ficaria curto demais.',
+  'seller-short': 'O clube não quer ficar com o elenco curto.',
+  'no-funds': 'Caixa insuficiente.',
+  refused: 'Proposta recusada. Tente melhorar os termos.',
+  'max-level': 'A base já está no nível máximo.',
+  'academy-full': 'A base atingiu o limite de jogadores.',
+};
+const said = (r: MarketResult, okText: string) => (r.ok ? okText : REASON[r.reason]);
 
 function buildView(g: Game): View {
   const s = g.state;
@@ -71,6 +108,7 @@ function buildView(g: Game): View {
       entries: s.finance.ledger.slice(-40).reverse().map((e) => ({ date: e.date, label: e.label, value: e.value, ...(e.detail ? { detail: e.detail } : {}) })),
     },
     saveSize: enc.ok ? enc.size : 0,
+    market: marketView(g),
   };
 }
 
@@ -133,6 +171,44 @@ async function handle(cmd: Command): Promise<Reply> {
     case 'auto':
       g.autoPick();
       toast = 'Escalação automática aplicada.';
+      break;
+    case 'buy':
+      toast = said(g.buy(cmd.id, cmd.offer), 'Transferência concluída.');
+      break;
+    case 'loanIn':
+      toast = said(g.loanIn(cmd.id), 'Empréstimo acertado.');
+      break;
+    case 'signFree':
+      toast = said(g.signFree(cmd.id), 'Agente livre contratado.');
+      break;
+    case 'renew':
+      toast = said(g.renew(cmd.id), 'Contrato renovado por 3 temporadas.');
+      break;
+    case 'release':
+      toast = said(g.release(cmd.id), 'Contrato rescindido.');
+      break;
+    case 'acceptOffer':
+      toast = said(g.acceptOffer(cmd.id), 'Proposta aceita.');
+      break;
+    case 'rejectOffer':
+      g.rejectOffer(cmd.id);
+      toast = 'Proposta recusada.';
+      break;
+    case 'upgradeAcademy':
+      toast = said(g.upgradeAcademy(), 'Instalações da base melhoradas.');
+      break;
+    case 'signYouth':
+      toast = said(g.signYouth(cmd.id), 'Jovem contratado para a base.');
+      break;
+    case 'dismissYouth':
+      g.dismissCandidate(cmd.id);
+      break;
+    case 'promoteYouth':
+      toast = said(g.promoteYouth(cmd.id), 'Jogador promovido ao profissional.');
+      break;
+    case 'releaseYouth':
+      g.releaseYouth(cmd.id);
+      toast = 'Jovem dispensado.';
       break;
   }
   const saveError = await persist(g);

@@ -14,8 +14,9 @@ import type { IsoDate } from '../dates.ts';
 import type { FinanceState } from '../finance/ledger.ts';
 import type { PlayerAttributes, Position } from '../squad/positions.ts';
 import type { Lineup } from '../squad/lineup.ts';
+import { createMarket, type MarketState } from '../market/market.ts';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export const SAVE_FORMAT = 'soccer-manager-save';
 /** ~2,5 milhões de caracteres: metade da cota típica de localStorage, folgado para IndexedDB. */
 export const MAX_SAVE_CHARS = 2_500_000;
@@ -56,6 +57,7 @@ export interface CareerState {
   lineup: Lineup;
   players: Record<string, PlayerDynamic>;
   news: NewsItem[];
+  market: MarketState;
 }
 
 export interface SaveEnvelope {
@@ -66,6 +68,11 @@ export interface SaveEnvelope {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/** Migrações conhecidas. v1 → v2: mercado e base. */
+export const MIGRATIONS: Record<number, (data: any) => any> = {
+  1: (d) => ({ ...d, market: createMarket() }),
+};
+
 /** Migração da versão `n` para `n + 1`, sobre JSON cru. */
 export type Migration = (data: any) => any;
 
@@ -80,7 +87,7 @@ export function encodeSave(state: CareerState, maxChars = MAX_SAVE_CHARS): Encod
   return text.length > maxChars ? { ok: false, reason: 'too-large', size: text.length } : { ok: true, text, size: text.length };
 }
 
-export function decodeSave(text: string, migrations: Record<number, Migration> = {}, target = SCHEMA_VERSION): DecodeResult {
+export function decodeSave(text: string, migrations: Record<number, Migration> = MIGRATIONS, target = SCHEMA_VERSION): DecodeResult {
   let env: any;
   try {
     env = JSON.parse(text);
@@ -147,7 +154,7 @@ export async function writeSave(store: SaveStore, slot: string, state: CareerSta
   return { ok: true, size: enc.size };
 }
 
-export async function readSave(store: SaveStore, slot: string, migrations: Record<number, Migration> = {}): Promise<DecodeResult | null> {
+export async function readSave(store: SaveStore, slot: string, migrations: Record<number, Migration> = MIGRATIONS): Promise<DecodeResult | null> {
   const text = await store.get(slot);
   return text === null ? null : decodeSave(text, migrations);
 }

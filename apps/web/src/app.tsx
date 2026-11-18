@@ -5,16 +5,18 @@
  * que escapa HTML (B14).
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import type { ClubOption, Command, CompetitionView, FixtureView, PlayerView, Reply, View } from './protocol.ts';
+import type { ClubOption, Command, CompetitionView, FixtureView, MarketPlayer, PlayerView, Reply, View, YouthView } from './protocol.ts';
 
 const brl = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
 const fmtDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 const tier = (ovr: number) => (ovr >= 85 ? 'special' : ovr >= 78 ? 'gold' : ovr >= 70 ? 'silver' : 'bronze');
 
-type Tab = 'painel' | 'elenco' | 'competicoes' | 'financas';
+type Tab = 'painel' | 'elenco' | 'mercado' | 'base' | 'competicoes' | 'financas';
 const TABS: [Tab, string, string][] = [
   ['painel', 'Painel', '🏠'],
   ['elenco', 'Elenco', '📋'],
+  ['mercado', 'Mercado', '🔁'],
+  ['base', 'Base', '🌱'],
   ['competicoes', 'Competições', '🏆'],
   ['financas', 'Finanças', '💰'],
 ];
@@ -101,6 +103,8 @@ export function App() {
       <main class="content">
         {tab === 'painel' && <Dashboard view={view} busy={busy} send={send} />}
         {tab === 'elenco' && <Squad view={view} busy={busy} send={send} />}
+        {tab === 'mercado' && <Market view={view} busy={busy} send={send} />}
+        {tab === 'base' && <Academy view={view} busy={busy} send={send} />}
         {tab === 'competicoes' && <Competitions view={view} />}
         {tab === 'financas' && <Finances view={view} />}
       </main>
@@ -474,6 +478,197 @@ function Finances({ view }: { view: View }) {
         </div>
       </section>
       <p class="tiny muted">Save atual: {(view.saveSize / 1000).toFixed(0)} mil caracteres.</p>
+    </>
+  );
+}
+
+type Send = (c: Command) => void;
+const POS_FILTER = ['', 'GOL', 'ZAG', 'LD', 'LE', 'VOL', 'MC', 'MAT', 'PE', 'PD', 'ATA'];
+
+function Market({ view, busy, send }: { view: View; busy: boolean; send: Send }) {
+  const m = view.market;
+  const [mode, setMode] = useState<'comprar' | 'livres' | 'meus'>('comprar');
+  const [pos, setPos] = useState('');
+  const [q, setQ] = useState('');
+  const [maxAsk, setMaxAsk] = useState(0);
+  const [pick, setPick] = useState<MarketPlayer | null>(null);
+  const [offer, setOffer] = useState(0);
+  const list = m.players
+    .filter((p) => (mode === 'livres' ? !p.club : !!p.club))
+    .filter((p) => (!pos || p.pos === pos) && (!q || p.name.toLowerCase().includes(q.toLowerCase())) && (!maxAsk || p.ask <= maxAsk))
+    .slice(0, 80);
+  const choose = (p: MarketPlayer) => {
+    setPick(p);
+    setOffer(p.ask);
+  };
+  return (
+    <>
+      <div class="page-head">
+        <h1>Mercado</h1>
+        <p class="muted">
+          Janela {m.windowOpen ? <b class="ok-text">aberta</b> : <b class="danger-text">fechada</b>} (janeiro e julho) • Caixa {brl(view.finance.balance)}
+        </p>
+      </div>
+      {m.offers.length > 0 && (
+        <section class="card">
+          <h3>Propostas recebidas</h3>
+          {m.offers.map((o) => (
+            <div class="list-row" key={o.id}>
+              <div class="grow">
+                <b>{o.player}</b>
+                <div class="tiny muted">
+                  {o.club.name} • {o.type === 'loan' ? 'empréstimo' : 'compra'} por {brl(o.value)} • até {fmtDate(o.expires)}
+                </div>
+              </div>
+              <button disabled={busy} onClick={() => send({ type: 'acceptOffer', id: o.id })}>Aceitar</button>
+              <button class="ghost" disabled={busy} onClick={() => send({ type: 'rejectOffer', id: o.id })}>Recusar</button>
+            </div>
+          ))}
+        </section>
+      )}
+      <div class="row">
+        {(['comprar', 'livres', 'meus'] as const).map((k) => (
+          <button key={k} class={mode === k ? 'active' : 'ghost'} onClick={() => setMode(k)}>
+            {{ comprar: 'Buscar jogadores', livres: 'Agentes livres', meus: 'Contratos do elenco' }[k]}
+          </button>
+        ))}
+      </div>
+      {mode === 'meus' ? (
+        <section class="card">
+          <div class="table-wrap">
+            <table class="table">
+              <tbody>
+                {[...view.squad].sort((a, b) => a.contract - b.contract).map((p) => (
+                  <tr key={p.id}>
+                    <td><span class="pos">{p.pos}</span></td>
+                    <td><b>{p.name}</b><div class="tiny muted">{p.age} anos • {brl(p.wage)}/mês • {p.contract} {p.contract === 1 ? 'temporada' : 'temporadas'}{m.loanedIn.includes(p.id) ? ' • emprestado' : ''}</div></td>
+                    <td><span class={`ovr ${tier(p.ovr)}`}>{p.ovr}</span></td>
+                    <td class="num">
+                      {!m.loanedIn.includes(p.id) && (
+                        <>
+                          <button disabled={busy} onClick={() => send({ type: 'renew', id: p.id })}>Renovar</button>{' '}
+                          <button class="ghost danger-text" disabled={busy} onClick={() => confirm(`Rescindir com ${p.name}? Custa metade dos salários restantes.`) && send({ type: 'release', id: p.id })}>Rescindir</button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+        <section class="card">
+          <div class="row filters">
+            <input placeholder="Nome" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
+            <select value={pos} onChange={(e) => setPos((e.target as HTMLSelectElement).value)}>
+              {POS_FILTER.map((p) => <option key={p} value={p}>{p || 'Todas as posições'}</option>)}
+            </select>
+            {mode === 'comprar' && (
+              <select value={maxAsk} onChange={(e) => setMaxAsk(+(e.target as HTMLSelectElement).value)}>
+                {[0, 1e6, 5e6, 15e6, 40e6].map((v) => <option key={v} value={v}>{v ? `Até ${brl(v)}` : 'Qualquer preço'}</option>)}
+              </select>
+            )}
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <tbody>
+                {list.map((p) => (
+                  <tr key={p.id} class={pick?.id === p.id ? 'me' : ''} onClick={() => choose(p)} style="cursor:pointer">
+                    <td><span class="pos">{p.pos}</span></td>
+                    <td><b>{p.name}</b><div class="tiny muted">{p.club ? p.club.name : 'Sem clube'} • {p.age} anos • POT {p.pot}</div></td>
+                    <td><span class={`ovr ${tier(p.ovr)}`}>{p.ovr}</span></td>
+                    <td class="num small">{p.club ? brl(p.ask) : `${brl(p.wage)}/mês`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!list.length && <p class="muted">Ninguém encontrado com esses filtros.</p>}
+        </section>
+      )}
+      {pick && mode !== 'meus' && (
+        <section class="card sheet">
+          <h3>{pick.name} <span class={`ovr ${tier(pick.ovr)}`}>{pick.ovr}</span></h3>
+          <p class="tiny muted">
+            {pick.pos} • {pick.age} anos • POT {pick.pot} • valor {brl(pick.value)} • contrato {pick.contract} • {pick.club?.name ?? 'agente livre'}
+          </p>
+          {pick.club ? (
+            <>
+              <label class="small">
+                Oferta: <b>{brl(offer)}</b> ({Math.round((offer / pick.ask) * 100)}% do pedido de {brl(pick.ask)})
+                <input type="range" min={Math.round(pick.ask * 0.5)} max={Math.round(pick.ask * 1.6)} step={10000} value={offer} onInput={(e) => setOffer(+(e.target as HTMLInputElement).value)} />
+              </label>
+              <div class="row">
+                <button disabled={busy || !m.windowOpen} onClick={() => send({ type: 'buy', id: pick.id, offer })}>Fazer proposta</button>
+                <button class="ghost" disabled={busy || !m.windowOpen} onClick={() => send({ type: 'loanIn', id: pick.id })}>Pedir empréstimo ({brl(Math.round(pick.value * 0.04))})</button>
+                <button class="ghost" onClick={() => setPick(null)}>Fechar</button>
+              </div>
+            </>
+          ) : (
+            <div class="row">
+              <button disabled={busy} onClick={() => send({ type: 'signFree', id: pick.id })}>Contratar sem custo de transferência</button>
+              <button class="ghost" onClick={() => setPick(null)}>Fechar</button>
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  );
+}
+
+function YouthRow({ y, children }: { y: YouthView; children: preact.ComponentChildren }) {
+  return (
+    <div class="list-row">
+      <span class="pos">{y.pos}</span>
+      <div class="grow">
+        <b>{y.name}</b>
+        <div class="tiny muted">{y.age} anos • POT <b>{y.pot}</b></div>
+      </div>
+      <span class={`ovr ${tier(y.ovr)}`}>{y.ovr}</span>
+      {children}
+    </div>
+  );
+}
+
+function Academy({ view, busy, send }: { view: View; busy: boolean; send: Send }) {
+  const a = view.market.academy;
+  return (
+    <>
+      <div class="page-head">
+        <h1>Base</h1>
+        <p class="muted">Relatórios a cada 3 meses com jovens de 14 a 18 anos. Quanto melhor a instalação, maiores o OVR e o potencial.</p>
+      </div>
+      <div class="grid metrics">
+        <section class="card"><div class="metric">{a.level}/{a.maxLevel}</div><div class="metric-label">Nível da base</div></section>
+        <section class="card"><div class="metric">{a.roster.length}/{a.limit}</div><div class="metric-label">Elenco da base</div></section>
+        <section class="card"><div class="metric">{a.lastIntake ? fmtDate(a.lastIntake) : '—'}</div><div class="metric-label">Último relatório</div></section>
+        <section class="card">
+          <button disabled={busy || a.level >= a.maxLevel} onClick={() => send({ type: 'upgradeAcademy' })}>
+            {a.level >= a.maxLevel ? 'Nível máximo' : `Melhorar • ${brl(a.upgradeCost)}`}
+          </button>
+        </section>
+      </div>
+      <section class="card">
+        <h3>Relatório atual</h3>
+        {a.candidates.map((y) => (
+          <YouthRow y={y} key={y.id}>
+            <button disabled={busy} onClick={() => send({ type: 'signYouth', id: y.id })}>Contratar</button>
+            <button class="ghost" disabled={busy} onClick={() => send({ type: 'dismissYouth', id: y.id })}>Dispensar</button>
+          </YouthRow>
+        ))}
+        {!a.candidates.length && <p class="muted">Nenhum relatório pendente. O próximo chega no início de um mês, 3 meses após o último.</p>}
+      </section>
+      <section class="card">
+        <h3>Elenco da base</h3>
+        {a.roster.map((y) => (
+          <YouthRow y={y} key={y.id}>
+            <button disabled={busy} onClick={() => send({ type: 'promoteYouth', id: y.id })}>Subir ao profissional</button>
+            <button class="ghost danger-text" disabled={busy} onClick={() => send({ type: 'releaseYouth', id: y.id })}>Dispensar</button>
+          </YouthRow>
+        ))}
+        {!a.roster.length && <p class="muted">A base ainda não tem atletas contratados.</p>}
+      </section>
     </>
   );
 }

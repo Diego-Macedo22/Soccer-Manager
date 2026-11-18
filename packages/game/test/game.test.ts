@@ -51,7 +51,8 @@ describe('carreira completa', () => {
 
   test('virada de temporada: idade +1, aporte da diretoria e save compactado', () => {
     const g = newGame();
-    const age = g.squad()[0]!;
+    // Contratos vencidos saem do clube (e param de envelhecer): usa o contrato mais longo.
+    const age = g.squad().sort((a, b) => g.state.players[b.id]!.contract - g.state.players[a.id]!.contract)[0]!;
     g.advance('2029-01-20');
     assert.equal(g.state.players[age.id]!.age, (db.players.find((p) => p.id === age.id)!.age) + 3);
     assert.equal(g.state.finance.ledger.filter((e) => e.kind === 'board').length, 3);

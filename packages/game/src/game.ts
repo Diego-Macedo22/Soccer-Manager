@@ -28,6 +28,24 @@ import {
   readSave,
   writeSave,
   capNews,
+  ACADEMY_LIMIT,
+  ACADEMY_MAX_LEVEL,
+  LOAN_FEE_RATE,
+  MAX_OFFERS,
+  MAX_SQUAD,
+  MIN_SQUAD,
+  OFFER_DAYS,
+  academyUpgradeCost,
+  buyChance,
+  calibrateAttributes,
+  marketValue,
+  receive,
+  spend,
+  transferWindowOpen,
+  wageDemand,
+  youthIntakeDue,
+  youthRatings,
+  type Position,
   changeFormation,
   swapPlayers,
   type SwapResult,
@@ -46,6 +64,9 @@ import {
 import { clubEconomy, createCareer, type Database, type NewCareerOptions } from '@sm/data';
 
 /** Chance de lesão no elenco do usuário a cada 30 dias (dificuldade normal da v0.5). */
+export type MarketResult = { ok: true } | { ok: false; reason: 'not-available' | 'window-closed' | 'squad-full' | 'squad-short' | 'seller-short' | 'no-funds' | 'refused' | 'max-level' | 'academy-full' };
+const fail = (reason: Exclude<MarketResult, { ok: true }>['reason']): MarketResult => ({ ok: false, reason });
+
 export const INJURY_RATE_30_DAYS = 0.1;
 const INJURIES: [string, number, number][] = [
   ['Contusão leve', 5, 10], ['Torção no tornozelo', 14, 24], ['Distensão muscular', 14, 28], ['Lesão na panturrilha', 20, 40],
@@ -89,11 +110,11 @@ export class Game {
   squad(clubId = this.state.userClubId): SquadPlayer[] {
     if (!this.squads) {
       this.squads = new Map();
+      const academy = new Set(this.state.market.academy.roster);
       for (const [id, d] of Object.entries(this.state.players)) {
-        if (!d.clubId) continue;
-        const b = this.base.get(id);
+        if (!d.clubId || academy.has(id)) continue;
         const list = this.squads.get(d.clubId) ?? [];
-        list.push({ id, name: b?.name ?? id, clubId: d.clubId, pos: d.pos, positions: b?.positions ?? [d.pos], ovr: d.ovr, attrs: d.attrs, form: d.form, morale: d.morale, fitness: d.fitness, injuredUntil: d.injuredUntil });
+        list.push({ id, name: this.playerName(id), clubId: d.clubId, pos: d.pos, positions: this.playerPositions(id), ovr: d.ovr, attrs: d.attrs, form: d.form, morale: d.morale, fitness: d.fitness, injuredUntil: d.injuredUntil });
         this.squads.set(d.clubId, list);
       }
     }
@@ -164,6 +185,287 @@ export class Game {
   }
 
   /** Visão completa para as invariantes (calendário + finanças + escalação). */
+  // ---------------------------------------------------------------- mercado
+
+  playerName(id: string): string {
+    return this.base.get(id)?.name ?? this.state.market.extra[id]?.name ?? id;
+  }
+
+  playerPositions(id: string): Position[] {
+    return this.base.get(id)?.positions ?? this.state.market.extra[id]?.positions ?? [this.state.players[id]!.pos];
+  }
+
+  valueOf(id: string): number {
+    const p = this.state.players[id]!;
+    return marketValue(p);
+  }
+
+  /** Preço pedido pelo clube dono (contrato curto barateia). */
+  askingPrice(id: string): number {
+    const p = this.state.players[id]!;
+    return Math.round((this.valueOf(id) * (p.contract <= 1 ? 0.8 : 1.15)) / 10_000) * 10_000;
+  }
+
+  isLoaned(id: string): boolean {
+    return this.state.market.loans.some((l) => l.playerId === id);
+  }
+
+  windowOpen(): boolean {
+    return transferWindowOpen(this.date);
+  }
+
+  private nextId(prefix: string): string {
+    return `${prefix}${++this.state.market.seq}`;
+  }
+
+  private moveTo(id: string, clubId: string | null): void {
+    const p = this.state.players[id]!;
+    p.clubId = clubId;
+    p.morale = clamp(p.morale + 5, 30, 95);
+    this.changed();
+  }
+
+  private afterUserSquadChange(): void {
+    this.changed();
+    this.reconcile(this.date);
+  }
+
+  /** Compra: o clube aceita ou recusa conforme a oferta (fórmula da v0.5). */
+  buy(id: string, offer: number): MarketResult {
+    const p = this.state.players[id];
+    const user = this.state.userClubId;
+    if (!p || !p.clubId || p.clubId === user) return fail('not-available');
+    if (!this.windowOpen()) return fail('window-closed');
+    if (this.isLoaned(id)) return fail('not-available');
+    if (this.squad().length >= MAX_SQUAD) return fail('squad-full');
+    if (this.squad(p.clubId).length <= MIN_SQUAD) return fail('seller-short');
+    if (offer > this.state.finance.balance) return fail('no-funds');
+    const rng = createRng(this.state.seed).derive(`buy:${id}:${this.date}:${this.state.market.seq++}`);
+    if (!rng.chance(buyChance(offer, this.askingPrice(id), p))) return fail('refused');
+    const from = this.db.clubs.find((c) => c.id === p.clubId)?.name ?? '';
+    spend(this.state.finance, { date: this.date, kind: 'transfer', label: 'Contratação', amount: offer, detail: this.playerName(id) });
+    this.moveTo(id, user);
+    p.wage = Math.max(p.wage, wageDemand(p.ovr));
+    p.contract = 3;
+    p.morale = 82;
+    this.news(this.date, 'Contratação concluída', `${this.playerName(id)} chega do ${from}.`);
+    this.afterUserSquadChange();
+    return { ok: true };
+  }
+
+  /** Empréstimo até a próxima temporada, pagando 4% do valor. */
+  loanIn(id: string): MarketResult {
+    const p = this.state.players[id];
+    const user = this.state.userClubId;
+    if (!p || !p.clubId || p.clubId === user || this.isLoaned(id)) return fail('not-available');
+    if (!this.windowOpen()) return fail('window-closed');
+    if (this.squad().length >= MAX_SQUAD) return fail('squad-full');
+    if (this.squad(p.clubId).length <= MIN_SQUAD) return fail('seller-short');
+    const fee = Math.round(this.valueOf(id) * LOAN_FEE_RATE);
+    if (fee > this.state.finance.balance) return fail('no-funds');
+    const rng = createRng(this.state.seed).derive(`loan:${id}:${this.date}:${this.state.market.seq++}`);
+    // Clubes emprestam com mais facilidade quem não é titular.
+    const starter = autoLineup(this.squad(p.clubId), '4-2-3-1', this.date).xi.some((s) => s.playerId === id);
+    if (!rng.chance(starter ? 0.2 : 0.65)) return fail('refused');
+    spend(this.state.finance, { date: this.date, kind: 'transfer', label: 'Empréstimo', amount: fee, detail: this.playerName(id) });
+    this.state.market.loans.push({ playerId: id, from: p.clubId, to: user, since: this.date });
+    this.moveTo(id, user);
+    this.news(this.date, 'Empréstimo acertado', `${this.playerName(id)} chega emprestado até o fim da temporada.`);
+    this.afterUserSquadChange();
+    return { ok: true };
+  }
+
+  /** Agente livre: assina pelo salário pedido. */
+  signFree(id: string): MarketResult {
+    const p = this.state.players[id];
+    if (!p || p.clubId) return fail('not-available');
+    if (this.squad().length >= MAX_SQUAD) return fail('squad-full');
+    p.clubId = this.state.userClubId;
+    p.wage = wageDemand(p.ovr);
+    p.contract = 2;
+    p.morale = 80;
+    this.news(this.date, 'Agente livre contratado', `${this.playerName(id)} assina por 2 temporadas.`);
+    this.afterUserSquadChange();
+    return { ok: true };
+  }
+
+  /** Renova por 3 temporadas com aumento de 10% (ou o salário de mercado, se maior). */
+  renew(id: string): MarketResult {
+    const p = this.state.players[id];
+    if (!p || p.clubId !== this.state.userClubId || this.isLoaned(id)) return fail('not-available');
+    p.wage = Math.max(Math.round(p.wage * 1.1), wageDemand(p.ovr));
+    p.contract = 3;
+    p.morale = clamp(p.morale + 8, 0, 100);
+    this.changed();
+    return { ok: true };
+  }
+
+  /** Rescisão: paga metade dos salários restantes e o jogador vira agente livre. */
+  release(id: string): MarketResult {
+    const p = this.state.players[id];
+    if (!p || p.clubId !== this.state.userClubId || this.isLoaned(id)) return fail('not-available');
+    if (this.squad().length <= MIN_SQUAD) return fail('squad-short');
+    const cost = Math.round(p.wage * p.contract * 12 * 0.5);
+    if (cost > 0 && !spend(this.state.finance, { date: this.date, kind: 'release', label: 'Rescisão', amount: cost, detail: this.playerName(id) }).ok) return fail('no-funds');
+    p.contract = 0;
+    this.moveTo(id, null);
+    this.news(this.date, 'Contrato rescindido', `${this.playerName(id)} deixa o clube.`);
+    this.afterUserSquadChange();
+    return { ok: true };
+  }
+
+  acceptOffer(offerId: string): MarketResult {
+    const m = this.state.market;
+    const o = m.offers.find((x) => x.id === offerId);
+    const p = o && this.state.players[o.playerId];
+    m.offers = m.offers.filter((x) => x.id !== offerId);
+    if (!o || !p || p.clubId !== this.state.userClubId) return fail('not-available');
+    if (this.squad().length <= MIN_SQUAD) return fail('squad-short');
+    const to = this.db.clubs.find((c) => c.id === o.fromClubId)?.name ?? '';
+    receive(this.state.finance, { date: this.date, kind: 'transfer', label: o.type === 'sale' ? 'Venda' : 'Empréstimo cedido', amount: o.value, detail: this.playerName(o.playerId) });
+    if (o.type === 'loan') m.loans.push({ playerId: o.playerId, from: this.state.userClubId, to: o.fromClubId, since: this.date });
+    this.moveTo(o.playerId, o.fromClubId);
+    m.offers = m.offers.filter((x) => x.playerId !== o.playerId);
+    this.news(this.date, o.type === 'sale' ? 'Venda concluída' : 'Empréstimo cedido', `${this.playerName(o.playerId)} vai para o ${to}.`);
+    this.afterUserSquadChange();
+    return { ok: true };
+  }
+
+  rejectOffer(offerId: string): void {
+    this.state.market.offers = this.state.market.offers.filter((x) => x.id !== offerId);
+  }
+
+  /** Toda semana: propostas pelos jogadores do usuário e o mercado da IA (só com a janela aberta). */
+  private marketWeek(date: IsoDate): void {
+    const m = this.state.market;
+    m.offers = m.offers.filter((o) => o.expires >= date && this.state.players[o.playerId]?.clubId === this.state.userClubId);
+    if (!transferWindowOpen(date)) return;
+    const rng = createRng(this.state.seed).derive(`market:${date}`);
+    const clubs = this.db.clubs.filter((c) => c.division && c.id !== this.state.userClubId);
+    if (m.offers.length < MAX_OFFERS && rng.chance(0.42)) {
+      const mine = this.squad().filter((p) => !this.isLoaned(p.id)).sort((a, b) => a.id.localeCompare(b.id));
+      if (mine.length > MIN_SQUAD) {
+        const p = rng.pick(mine);
+        const bidder = rng.pick(clubs);
+        const loan = rng.chance(0.28);
+        const value = Math.round((this.valueOf(p.id) * (loan ? LOAN_FEE_RATE : rng.float(0.8, 1.25))) / 1000) * 1000;
+        m.offers.push({ id: this.nextId('o'), playerId: p.id, fromClubId: bidder.id, type: loan ? 'loan' : 'sale', value, expires: addDays(date, OFFER_DAYS) });
+        this.news(date, 'Proposta recebida', `${bidder.name} quer ${this.playerName(p.id)}${loan ? ' por empréstimo' : ''}.`);
+      }
+    }
+    if (rng.chance(0.3)) {
+      const from = rng.pick(clubs);
+      const to = rng.pick(clubs.filter((c) => c.id !== from.id));
+      const pool = this.squad(from.id).filter((p) => !this.isLoaned(p.id) && (this.state.players[p.id]?.age ?? 99) < 34).sort((a, b) => a.id.localeCompare(b.id));
+      if (pool.length > MIN_SQUAD + 2 && this.squad(to.id).length < MAX_SQUAD) {
+        const p = rng.pick(pool);
+        this.moveTo(p.id, to.id);
+        this.state.players[p.id]!.contract = rng.int(2, 4);
+        this.news(date, 'Mercado se movimenta', `${p.name} deixa o ${from.name} e acerta com o ${to.name}.`);
+      }
+    }
+  }
+
+  /** Abertura de temporada: empréstimos voltam, contratos vencidos são renovados (IA) ou encerrados (usuário). */
+  private seasonMarket(cycleId: string, clubs: Set<string>, date: IsoDate): void {
+    const m = this.state.market;
+    const user = this.state.userClubId;
+    let userChanged = false;
+    const ending = m.loans.filter((x) => clubs.has(x.to) && addDays(x.since, 60) <= date);
+    for (const l of ending) {
+      const p = this.state.players[l.playerId];
+      if (p) {
+        p.clubId = l.from;
+        userChanged ||= l.from === user || l.to === user;
+        if (l.from === user || l.to === user) this.news(date, 'Fim de empréstimo', `${this.playerName(l.playerId)} volta ao ${this.db.clubs.find((c) => c.id === l.from)?.name ?? ''}.`);
+      }
+    }
+    m.loans = m.loans.filter((x) => !ending.includes(x));
+    const rng = createRng(this.state.seed).derive(`contracts:${date}:${cycleId}`);
+    const academy = new Set(m.academy.roster);
+    for (const [id, p] of Object.entries(this.state.players).sort(([a], [b]) => a.localeCompare(b))) {
+      if (!p.clubId || !clubs.has(p.clubId) || p.contract > 0) continue;
+      if (p.clubId === user && !academy.has(id)) {
+        p.clubId = null;
+        userChanged = true;
+        this.news(date, 'Contrato encerrado', `${this.playerName(id)} sai como agente livre.`);
+      } else {
+        p.contract = rng.int(2, 4);
+      }
+    }
+    if (userChanged) this.changed();
+  }
+
+  // ----------------------------------------------------------------- base
+
+  private youthIntake(date: IsoDate): void {
+    const a = this.state.market.academy;
+    const rng = createRng(this.state.seed).derive(`youth:${date}`);
+    const n = rng.int(5, 8);
+    const names = this.db.players.map((p) => p.name.split(' ')).filter((x) => x.length >= 2);
+    a.candidates = [];
+    for (let i = 0; i < n; i++) {
+      const template = rng.pick(this.db.players);
+      const pos = template.pos;
+      const r = youthRatings(rng, a.level);
+      const name = `${rng.pick(names)[0]} ${rng.pick(names).at(-1)}`;
+      a.candidates.push({ id: this.nextId('yc'), name, pos, ...r, attrs: calibrateAttributes(template.attrs, pos, r.ovr) });
+    }
+    a.lastIntake = date;
+    this.news(date, 'Relatório da base', `Chegaram ${n} jovens para avaliação.`);
+  }
+
+  upgradeAcademy(): MarketResult {
+    const a = this.state.market.academy;
+    if (a.level >= ACADEMY_MAX_LEVEL) return fail('max-level');
+    const r = spend(this.state.finance, { date: this.date, kind: 'facility', label: 'Melhoria da base', amount: academyUpgradeCost(a.level), detail: `Nível ${a.level + 1}` });
+    if (!r.ok) return fail('no-funds');
+    a.level++;
+    return { ok: true };
+  }
+
+  signYouth(candidateId: string): MarketResult {
+    const a = this.state.market.academy;
+    const i = a.candidates.findIndex((y) => y.id === candidateId);
+    if (i < 0) return fail('not-available');
+    if (a.roster.length >= ACADEMY_LIMIT) return fail('academy-full');
+    const y = a.candidates.splice(i, 1)[0]!;
+    const id = this.nextId('y');
+    this.state.players[id] = {
+      clubId: this.state.userClubId, pos: y.pos, age: y.age, ovr: y.ovr, pot: y.pot, attrs: y.attrs, wage: Math.round(y.ovr * y.ovr * 2.5), contract: 3,
+      form: 70, morale: 78, fitness: 100, injuredUntil: null, devProgress: 0, declineProgress: 0, appsThisSeason: 0,
+    };
+    this.state.market.extra[id] = { name: y.name, positions: [y.pos] };
+    a.roster.push(id);
+    this.changed();
+    return { ok: true };
+  }
+
+  dismissCandidate(candidateId: string): void {
+    const a = this.state.market.academy;
+    a.candidates = a.candidates.filter((y) => y.id !== candidateId);
+  }
+
+  /** Sobe ao profissional: passa a contar no elenco e na escalação. */
+  promoteYouth(id: string): MarketResult {
+    const a = this.state.market.academy;
+    if (!a.roster.includes(id)) return fail('not-available');
+    if (this.squad().length >= MAX_SQUAD) return fail('squad-full');
+    a.roster = a.roster.filter((x) => x !== id);
+    this.news(this.date, 'Promovido ao profissional', `${this.playerName(id)} sobe da base.`);
+    this.afterUserSquadChange();
+    return { ok: true };
+  }
+
+  releaseYouth(id: string): void {
+    const a = this.state.market.academy;
+    if (!a.roster.includes(id)) return;
+    a.roster = a.roster.filter((x) => x !== id);
+    delete this.state.players[id];
+    delete this.state.market.extra[id];
+    this.changed();
+  }
+
   snapshot(): InvariantSnapshot {
     return { ...calendarSnapshot(this.state.calendar, this.state.userClubId), ...financeSnapshot(this.state.finance), ...lineupSnapshot(this.state.lineup, this.squad()) };
   }
@@ -207,8 +509,13 @@ export class Game {
       case 'fixture-played':
         return this.countAppearances(cal.fixtures[e.fixtureId]!, cal.date);
       case 'tick':
-        if (e.tick === 'monthly') this.developAll(cal);
-        else this.injuries(e.date);
+        if (e.tick === 'monthly') {
+          this.developAll(cal);
+          if (youthIntakeDue(this.state.market.academy, e.date)) this.youthIntake(e.date);
+        } else {
+          this.injuries(e.date);
+          this.marketWeek(e.date);
+        }
         return;
       case 'season-opened':
         return this.seasonOpened(e, cal);
@@ -288,6 +595,7 @@ export class Game {
         p.contract = Math.max(0, p.contract - 1);
       }
     }
+    if (!firstSeason) this.seasonMarket(e.cycleId, clubs, e.date);
     this.changed();
     compactCalendar(cal);
     if (clubs.has(this.state.userClubId)) {
