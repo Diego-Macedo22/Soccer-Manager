@@ -1,0 +1,137 @@
+/*
+ * Tema "Modo Carreira" — camada visual por cima de main.css.
+ * Mistura a densidade de informação de um manager (tabelas, painéis, barra lateral)
+ * com a apresentação de um jogo de futebol moderno (tipografia condensada, cartas
+ * de jogador, brilhos e a cor do clube em destaque).
+ * --club e --club2 são definidos em tempo de execução com as cores do clube atual.
+ */
+:root{
+  --bg:#080b10;--panel:#10151d;--panel2:#161d27;--panel3:#1d2632;--line:#252f3d;--text:#eef3f8;--muted:#8592a5;
+  --accent:#00d98b;--accent-ink:#04140d;--accent2:#00d98b;--danger:#ff4d6a;--warn:#ffb020;--info:#38b6ff;
+  --club:#00d98b;--club2:#0b1a14;
+  --gold1:#f6e27a;--gold2:#c9a43b;--silver1:#e9edf2;--silver2:#9aa4b1;--bronze1:#e6a36b;--bronze2:#9a5a2c;--special1:#5ef2c2;--special2:#0b8f6a;
+  --shadow:0 20px 50px rgba(0,0,0,.45);
+  --display:"Barlow Condensed","Oswald","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter","Barlow",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+body.light{
+  --bg:#eef1f5;--panel:#ffffff;--panel2:#f5f7fa;--panel3:#e9edf3;--line:#d8dee8;--text:#121822;--muted:#5f6b7d;
+  --accent:#00a86b;--accent-ink:#ffffff;--accent2:#00a86b;--danger:#d93556;--warn:#c98200;--info:#1b84c9;
+  --shadow:0 16px 40px rgba(20,30,45,.12);
+}
+html,body{font-family:var(--body);background:var(--bg)}
+body{background:radial-gradient(1200px 600px at 100% -10%,color-mix(in srgb,var(--club) 14%,transparent),transparent 60%),var(--bg);background-attachment:fixed}
+
+/* ---------- Tipografia de jogo ---------- */
+h1,h2,h3,.metric,.setup-title,.page-head h1,.brand span,.scoreboard .score,.team-score .score,.clock{font-family:var(--display)}
+.page-head h1{font-size:34px;font-weight:800;text-transform:uppercase;letter-spacing:.01em;font-style:italic;line-height:1}
+.page-head{padding-bottom:12px;border-bottom:1px solid var(--line);position:relative}
+.page-head:after{content:"";position:absolute;left:0;bottom:-1px;width:84px;height:3px;background:linear-gradient(90deg,var(--club),var(--accent));border-radius:3px}
+.card h3,h3{font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.metric{font-size:34px;font-weight:800;letter-spacing:0;line-height:1}
+.metric-label{text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+
+/* ---------- Botões ---------- */
+button{border-radius:8px;font-weight:600}
+.primary{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#38b6ff))!important;border-color:transparent!important;color:var(--accent-ink)!important;font-weight:800;text-transform:uppercase;letter-spacing:.04em;box-shadow:0 6px 22px color-mix(in srgb,var(--accent) 35%,transparent)}
+.primary:hover:not(:disabled){filter:brightness(1.08)}
+.success{color:var(--accent-ink)!important}
+
+/* ---------- Estrutura: barra lateral estilo manager ---------- */
+.sidebar{background:linear-gradient(180deg,color-mix(in srgb,var(--club) 10%,var(--panel)) 0%,var(--panel) 220px);border-right:1px solid var(--line)}
+.brand-mark{background:linear-gradient(135deg,var(--accent),#38b6ff);border-radius:10px;transform:skewX(-8deg)}
+.brand span{font-size:20px;font-weight:800;text-transform:uppercase;font-style:italic;letter-spacing:.02em}
+.nav button{border-radius:6px;font-weight:500;position:relative}
+.nav button:hover:not(:disabled){transform:none;background:var(--panel2);color:var(--text)}
+.nav button.active{background:linear-gradient(90deg,color-mix(in srgb,var(--club) 26%,transparent),transparent)!important;border-color:transparent!important;color:var(--text)!important;font-weight:700}
+.nav button.active:before{content:"";position:absolute;left:-13px;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:var(--club);box-shadow:0 0 12px var(--club)}
+.nav-section,.nav-group-title{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em}
+
+/* ---------- Barra superior com a cor do clube ---------- */
+.topbar{background:linear-gradient(90deg,color-mix(in srgb,var(--club) 30%,var(--panel)) 0%,color-mix(in srgb,var(--panel) 94%,transparent) 45%)!important;border-bottom:1px solid var(--line)}
+.topbar:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--club),var(--club2),transparent 70%)}
+.club-badge{border-radius:10px 10px 18px 18px;border:2px solid rgba(255,255,255,.35);font-family:var(--display);font-size:15px;letter-spacing:.03em;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+#clubNameTop{font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+.pill{border-radius:6px;background:color-mix(in srgb,var(--panel2) 85%,transparent);font-weight:600}
+
+/* ---------- Painéis ---------- */
+.card{border-radius:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 100%,transparent),color-mix(in srgb,var(--panel) 92%,var(--bg)));border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px rgba(0,0,0,.18)}
+.progress{height:6px;border-radius:6px;background:var(--panel3)}
+.progress>span{background:linear-gradient(90deg,var(--accent),#38b6ff);border-radius:6px}
+
+/* ---------- Tabelas densas (manager) ---------- */
+.table{font-size:12.5px}
+.table th{font-family:var(--display);font-size:11px;font-weight:700;letter-spacing:.1em;background:var(--panel3);color:var(--muted);border-bottom:1px solid var(--line)}
+.table th,.table td{padding:7px 9px}
+.table tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--panel2) 55%,transparent)}
+.table tbody tr.clickable:hover td{background:color-mix(in srgb,var(--club) 14%,var(--panel2))!important}
+.table tr.champion td:first-child{box-shadow:inset 3px 0 0 var(--gold2)}
+.table tr.libertadores td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.table tr.sudamericana td:first-child{box-shadow:inset 3px 0 0 var(--info)}
+.table tr.relegated td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+
+/* ---------- Notas no estilo carta (ouro / prata / bronze) ---------- */
+.rating:not(td){display:inline-grid;place-items:center;min-width:32px;height:22px;padding:0 6px;border-radius:5px 5px 9px 9px;font-family:var(--display);font-size:14px;font-weight:800;color:#1a1406!important;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.rating.r85:not(td){background:linear-gradient(160deg,var(--special1),var(--special2));color:#03140e!important}
+.rating.r78:not(td){background:linear-gradient(160deg,var(--gold1),var(--gold2))}
+.rating.r70:not(td){background:linear-gradient(160deg,var(--silver1),var(--silver2))}
+.rating.r60:not(td){background:linear-gradient(160deg,var(--bronze1),var(--bronze2));color:#1d0d02!important}
+
+/* ---------- Ficha do jogador: carta ---------- */
+.player-top{gap:16px;padding:14px;margin:-4px -4px 6px;border-radius:12px;background:linear-gradient(120deg,color-mix(in srgb,var(--club) 22%,transparent),transparent 70%)}
+.avatar{width:74px;height:96px;border-radius:10px 10px 30px 30px;background:linear-gradient(160deg,var(--gold1),var(--gold2) 60%,#8a6a16);color:#2a1f05;font-family:var(--display);font-size:30px;font-weight:800;box-shadow:0 10px 26px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.35);clip-path:polygon(0 8%,12% 0,88% 0,100% 8%,100% 82%,50% 100%,0 82%)}
+.player-top h2{font-family:var(--display);font-size:26px!important;text-transform:uppercase;font-style:italic;letter-spacing:.01em}
+.attr-grid{gap:6px}
+.attr{display:flex;justify-content:space-between;align-items:center;border-radius:6px;padding:7px 10px;background:var(--panel2)}
+.attr b{font-family:var(--display);font-size:17px}
+.trait,.tag{border-radius:5px;font-weight:600}
+.trait{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+
+/* ---------- Campo e partida ---------- */
+.pitch,.tactic-pitch,.match-pitch{background:repeating-linear-gradient(0deg,#0f5b34 0 44px,#0d5230 44px 88px)!important;border-color:rgba(255,255,255,.18)!important}
+.slot-bubble{border-color:var(--club);background:#0b1118;font-family:var(--display);font-size:12px}
+.scoreboard{background:linear-gradient(90deg,color-mix(in srgb,var(--club) 30%,var(--panel)),var(--panel) 40%,var(--panel) 60%,color-mix(in srgb,var(--info) 18%,var(--panel)));border-radius:12px}
+.scoreboard .score,.team-score .score{font-size:46px;font-weight:800}
+.clock{font-weight:700;letter-spacing:.05em}
+.player-chip{border-radius:8px}
+
+/* ---------- Modais e avisos ---------- */
+.modal{border-radius:14px;border:1px solid var(--line);background:var(--panel)}
+.modal-head h2{font-family:var(--display);text-transform:uppercase;font-style:italic}
+.toast{border-left:3px solid var(--accent)}
+
+/* ---------- Tela inicial: seleção do modo carreira ---------- */
+#setup{background:radial-gradient(900px 500px at 15% 10%,rgba(0,217,139,.16),transparent 60%),radial-gradient(800px 500px at 90% 90%,rgba(56,182,255,.14),transparent 60%),linear-gradient(160deg,#06090d,#0c1219)}
+.setup-card{border-radius:16px;background:rgba(16,21,29,.92);backdrop-filter:blur(10px)}
+body.light .setup-card{background:rgba(255,255,255,.95)}
+.setup-hero{background:linear-gradient(150deg,rgba(0,217,139,.14),transparent 60%)}
+.setup-title{font-size:58px;font-weight:800;text-transform:uppercase;font-style:italic;line-height:.92;letter-spacing:0}
+.setup-title em{font-style:italic;color:var(--accent)}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+.mode-card{position:relative;text-align:left;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);display:grid;gap:4px}
+.mode-card b{font-family:var(--display);font-size:19px;text-transform:uppercase;font-style:italic}
+.mode-card span{font-size:12px;color:var(--muted);line-height:1.4}
+.mode-card.selected{border-color:var(--accent);background:linear-gradient(150deg,rgba(0,217,139,.16),var(--panel2));box-shadow:0 0 0 1px var(--accent) inset}
+.mode-card .soon{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:3px 6px;border-radius:4px;background:var(--panel3);color:var(--muted)}
+.mode-card:disabled{opacity:.75;cursor:not-allowed}
+.setup-form h2{font-family:var(--display);font-size:26px;text-transform:uppercase;font-style:italic}
+
+@media (max-width:760px){
+  .setup-title{font-size:40px}
+  .mode-grid{grid-template-columns:1fr}
+  .nav button.active:before{display:none}
+}
+.mode-card .soon{position:static;justify-self:start;margin-bottom:2px}
+
+/* Nota dentro de tabelas: texto colorido por nível (mantém o layout da tabela) */
+td.rating{font-family:var(--display);font-size:16px;font-weight:800}
+td.rating.r85{color:var(--special1)!important}
+td.rating.r78{color:var(--gold1)!important}
+td.rating.r70{color:var(--silver1)!important}
+td.rating.r60{color:var(--bronze1)!important}
+body.light td.rating.r85{color:var(--special2)!important}
+body.light td.rating.r78{color:var(--gold2)!important}
+body.light td.rating.r70{color:var(--silver2)!important}
+body.light td.rating.r60{color:var(--bronze2)!important}
+.attr-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))!important}
+.attr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:6px}

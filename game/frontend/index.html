@@ -3,30 +3,38 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Soccer Manager v0.5 Node</title>
+<title>Soccer Manager — Modo Carreira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="./css/main.css">
+<link rel="stylesheet" href="./css/theme-career.css">
 </head>
 <body>
 <section id="setup">
   <div class="setup-card">
     <div class="setup-hero">
       <div class="brand"><div class="brand-mark">⚽</div><span>Soccer Manager</span></div>
-      <h1 class="setup-title">Construa sua carreira.<br>Decisões importam.</h1>
-      <p class="setup-sub">Uma mistura de manager clássico com interface moderna: elenco, posições, tática, mercado, calendário, carreira e partidas 2D com decisões ao vivo.</p>
+      <h1 class="setup-title">Modo<br><em>Carreira</em></h1>
+      <p class="setup-sub">Gestão profunda de clube com apresentação de jogo de futebol moderno: elenco, tática, mercado, base, finanças e partidas ao vivo com decisões em tempo real.</p>
+      <div class="mode-grid">
+        <button type="button" class="mode-card selected" aria-pressed="true"><b>Carreira de Técnico</b><span>Assuma um clube, cumpra os objetivos da diretoria e construa seu legado.</span></button>
+        <button type="button" class="mode-card" disabled><span class="soon">Em breve</span><b>Carreira de Jogador</b><span>Crie seu atleta, evolua atributos e conquiste espaço no elenco.</span></button>
+      </div>
       <div class="feature-list">
-        <div class="feature">Séries A e B de 2026 com 40 clubes jogáveis</div>
-        <div class="feature">Elencos com núcleo real atualizado + profundidade gerada</div>
+        <div class="feature">88 clubes: Séries A e B, Liga Inglesa, Liga Espanhola e convidados sul-americanos</div>
+        <div class="feature">Mais de 1.300 jogadores com nomes fictícios + base gerada</div>
         <div class="feature">5 substituições, 3 janelas e intervalo automático</div>
-        <div class="feature">Promoção, rebaixamento, classificação continental e nova temporada</div>
+        <div class="feature">Acesso, rebaixamento, copas continentais e nova temporada</div>
       </div>
     </div>
     <div class="setup-form">
-      <h2 style="margin:0 0 20px">Nova carreira</h2>
+      <h2 style="margin:0 0 20px">Nova carreira de técnico</h2>
       <div class="field"><label>Nome do técnico</label><input id="managerName" value="Diego" maxlength="30"></div>
       <div class="field"><label>Clube</label><select id="clubSelect"></select></div>
       <div class="check-row"><div><b>Impulso financeiro</b><div class="tiny muted">+ R$ 25 milhões no orçamento inicial</div></div><input type="checkbox" id="moneyBoost"></div>
       <div class="check-row"><div><b>Modo realista</b><div class="tiny muted">Negociações e evolução mais exigentes</div></div><input type="checkbox" id="realistic" checked></div>
-      <div class="db-note" style="margin:12px 0">Banco V0.4: snapshot de 02/10/2026. Elencos verificados foram atualizados com prioridade para Corinthians, Flamengo e Santos; os fillers genéricos automáticos dos clubes brasileiros foram removidos. OVR, potencial, salários e alguns atributos continuam sendo parâmetros de gameplay. Jovens fictícios aparecem somente pelo sistema de base.</div>
+      <div class="db-note" style="margin:12px 0">Universo fictício: clubes, jogadores, estádios e competições usam nomes inspirados no futebol real, sem licença oficial.</div>
       <button class="primary" id="startCareer" style="width:100%;margin-top:4px">Começar carreira</button>
       <button id="loadCareer" style="width:100%;margin-top:8px">Carregar carreira salva</button>
     </div>
@@ -80,6 +88,7 @@
   </main>
 </div>
 <div id="modalRoot"></div><div id="toastRoot" class="toast-root"></div>
+<script src="./js/fictional-names.js"></script>
 <script src="./js/api.js"></script>
 <script src="./js/app.js"></script>
 </body>
