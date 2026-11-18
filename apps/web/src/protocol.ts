@@ -1,5 +1,5 @@
 /** Mensagens entre a interface e o Worker que roda a carreira. */
-import type { NewsItem, Position } from '@sm/core';
+import type { MatchChange, MatchInput, MatchTimeline, NewsItem, Position } from '@sm/core';
 
 export type Command =
   | { type: 'init' }
@@ -23,6 +23,9 @@ export type Command =
   | { type: 'promoteYouth'; id: string }
   | { type: 'releaseYouth'; id: string }
   | { type: 'preContract'; id: string }
+  | { type: 'matchStart' }
+  | { type: 'matchChange'; change: MatchChange }
+  | { type: 'matchFinish' }
   | { type: 'hireScout' }
   | { type: 'sendScout'; id: string; region: string; months: number }
   | { type: 'takeJob'; clubId: string }
@@ -82,6 +85,7 @@ export interface MarketView {
 export type Reply =
   | { type: 'init'; hasSave: boolean; clubs: ClubOption[] }
   | { type: 'view'; view: View; toast?: string }
+  | { type: 'match'; match: LiveMatchView }
   | { type: 'error'; message: string };
 
 export interface ClubOption {
@@ -162,4 +166,18 @@ export interface View {
   saveSize: number;
   market: MarketView;
   board: BoardView;
+}
+
+/** Partida ao vivo: o motor roda no Worker; a tela só reproduz a linha do tempo. */
+export interface LiveMatchView {
+  fixtureId: string;
+  competition: string;
+  round: string;
+  home: ClubRef & { colors: [string, string] };
+  away: ClubRef & { colors: [string, string] };
+  userSide: 'home' | 'away';
+  input: MatchInput;
+  timeline: MatchTimeline;
+  names: Record<string, string>;
+  changes: MatchChange[];
 }

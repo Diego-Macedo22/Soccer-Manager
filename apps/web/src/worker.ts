@@ -9,7 +9,7 @@ import type { MarketResult } from '@sm/game';
 import { loadDatabase, type Database } from '@sm/data';
 import { Game } from '@sm/game';
 import { IdbStore } from './idb-store.ts';
-import type { BoardView, ClubRef, Command, FixtureView, MarketView, Reply, View } from './protocol.ts';
+import type { LiveMatchView, BoardView, ClubRef, Command, FixtureView, MarketView, Reply, View } from './protocol.ts';
 
 const SLOT = 'carreira-1';
 const db: Database = loadDatabase();
@@ -17,6 +17,8 @@ const store = new IdbStore();
 const clubs = new Map(db.clubs.map((c) => [c.id, c]));
 const LEAGUES: Record<string, string> = { A: 'Liga Nacional Série A', B: 'Liga Nacional Série B', PL: 'Liga Inglesa', LL: 'Liga Espanhola' };
 let game: Game | null = null;
+/** Partida ao vivo em andamento (mudanças feitas pelo usuário). */
+let live: { fixtureId: string; changes: import('@sm/core').MatchChange[] } | null = null;
 
 const ref = (id: string): ClubRef => ({ id, name: clubs.get(id)?.name ?? id, abbr: clubs.get(id)?.abbr ?? id.slice(0, 3).toUpperCase() });
 
@@ -81,6 +83,20 @@ function boardView(g: Game): BoardView {
 
 function rows(table: ReturnType<typeof sortTable>, user: string) {
   return table.map((r, i) => ({ pos: i + 1, club: ref(r.clubId), played: r.played, won: r.won, drawn: r.drawn, lost: r.lost, gd: r.goalsFor - r.goalsAgainst, points: r.points, user: r.clubId === user }));
+}
+
+function liveView(g: Game): LiveMatchView {
+  const f = g.state.calendar.fixtures[live!.fixtureId]!;
+  const input = g.matchInput(f.id);
+  const timeline = g.runMatch(f.id, live!.changes);
+  const names: Record<string, string> = {};
+  for (const s of ['home', 'away'] as const) for (const p of [...input[s].xi, ...input[s].bench]) names[p.id] = p.name;
+  const club = (id: string) => ({ ...ref(id), colors: clubs.get(id)?.colors ?? (['#555', '#fff'] as [string, string]) });
+  return {
+    fixtureId: f.id, competition: g.state.calendar.competitions[f.competitionId]?.name ?? '', round: f.roundName,
+    home: club(f.home), away: club(f.away), userSide: f.home === g.state.userClubId ? 'home' : 'away',
+    input, timeline, names, changes: live!.changes,
+  };
 }
 
 function buildView(g: Game): View {
@@ -169,6 +185,25 @@ async function handle(cmd: Command): Promise<Reply> {
   let toast: string | undefined;
   if (g.state.board.sacked && ['continue', 'advanceDays'].includes(cmd.type)) {
     return { type: 'view', view: buildView(g), toast: 'Você foi demitido. Escolha um novo clube na aba Diretoria.' };
+  }
+  if (cmd.type === 'matchStart') {
+    const next = g.nextUserFixture();
+    if (!next || next.date !== g.date) return { type: 'error', message: 'Não há jogo hoje.' };
+    live = { fixtureId: next.id, changes: [] };
+    return { type: 'match', match: liveView(g) };
+  }
+  if (cmd.type === 'matchChange') {
+    if (!live) return { type: 'error', message: 'Nenhuma partida em andamento.' };
+    live.changes = [...live.changes, cmd.change];
+    return { type: 'match', match: liveView(g) };
+  }
+  if (cmd.type === 'matchFinish') {
+    if (!live) return { type: 'error', message: 'Nenhuma partida em andamento.' };
+    const { timeline } = g.finishUserMatch(live.fixtureId, live.changes);
+    const f = g.state.calendar.fixtures[live.fixtureId]!;
+    live = null;
+    const saveError = await persist(g);
+    return { type: 'view', view: buildView(g), ...withToast(saveError ?? `Fim de jogo: ${ref(f.home).abbr} ${timeline.score.home} x ${timeline.score.away} ${ref(f.away).abbr}`) };
   }
   switch (cmd.type) {
     case 'continue': {

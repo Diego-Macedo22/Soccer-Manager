@@ -5,7 +5,8 @@
  * que escapa HTML (B14).
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import type { ClubOption, Command, CompetitionView, FixtureView, MarketPlayer, PlayerView, Reply, View, YouthView } from './protocol.ts';
+import { LiveMatch } from './match.tsx';
+import type { LiveMatchView, ClubOption, Command, CompetitionView, FixtureView, MarketPlayer, PlayerView, Reply, View, YouthView } from './protocol.ts';
 
 const brl = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
 const fmtDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -50,6 +51,7 @@ export function App() {
   const [view, setView] = useState<View | null>(null);
   const [tab, setTab] = useState<Tab>('painel');
   const [toast, setToast] = useState<string | null>(null);
+  const [match, setMatch] = useState<LiveMatchView | null>(null);
 
   on((r) => {
     if (r.type === 'init') {
@@ -57,8 +59,10 @@ export function App() {
       setHasSave(r.hasSave);
     } else if (r.type === 'view') {
       setView(r.view);
+      setMatch(null);
       if (r.toast) setToast(r.toast);
-    } else setToast(r.message);
+    } else if (r.type === 'match') setMatch(r.match);
+    else setToast(r.message);
   });
   useEffect(() => send({ type: 'init' }), []);
   useEffect(() => {
@@ -90,7 +94,7 @@ export function App() {
           <span class="pill">{fmtDate(view.date)}</span>
           <span class="pill hide-sm">{brl(view.finance.balance)}</span>
         </div>
-        <button class="primary continue" disabled={busy} onClick={() => send({ type: 'continue' })}>
+        <button class="primary continue" disabled={busy || !!match} onClick={() => send(view.next?.today ? { type: 'matchStart' } : { type: 'continue' })}>
           {busy ? 'Simulando…' : view.next?.today ? 'Jogar partida' : 'Continuar'}
         </button>
       </header>
@@ -102,13 +106,14 @@ export function App() {
         ))}
       </nav>
       <main class="content">
-        {tab === 'painel' && <Dashboard view={view} busy={busy} send={send} />}
-        {tab === 'elenco' && <Squad view={view} busy={busy} send={send} />}
-        {tab === 'mercado' && <Market view={view} busy={busy} send={send} />}
-        {tab === 'base' && <Academy view={view} busy={busy} send={send} />}
-        {tab === 'diretoria' && <Board view={view} busy={busy} send={send} />}
-        {tab === 'competicoes' && <Competitions view={view} />}
-        {tab === 'financas' && <Finances view={view} />}
+        {match && <LiveMatch m={match} busy={busy} send={send} />}
+        {!match && tab === 'painel' && <Dashboard view={view} busy={busy} send={send} />}
+        {!match && tab === 'elenco' && <Squad view={view} busy={busy} send={send} />}
+        {!match && tab === 'mercado' && <Market view={view} busy={busy} send={send} />}
+        {!match && tab === 'base' && <Academy view={view} busy={busy} send={send} />}
+        {!match && tab === 'diretoria' && <Board view={view} busy={busy} send={send} />}
+        {!match && tab === 'competicoes' && <Competitions view={view} />}
+        {!match && tab === 'financas' && <Finances view={view} />}
       </main>
       {toast && (
         <div class="toast" role="status">
@@ -209,6 +214,12 @@ function Dashboard({ view, busy, send }: { view: View; busy: boolean; send: (c: 
             </>
           ) : (
             <p class="muted">Sem jogos marcados.</p>
+          )}
+          {view.next?.today && (
+            <div class="row">
+              <button class="primary" disabled={busy} onClick={() => send({ type: 'matchStart' })}>▶ Jogar ao vivo</button>
+              <button class="ghost" disabled={busy} onClick={() => send({ type: 'continue' })}>Simular resultado</button>
+            </div>
           )}
           <div class="row">
             <button disabled={busy} onClick={() => send({ type: 'advanceDays', days: 7 })}>

@@ -18,6 +18,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
     "characterize": "node packages/legacy-harness/scripts/characterize.ts",
     "legacy:start": "npm --prefix game start",
+    "calibrate": "node packages/game/scripts/calibrate.ts",
     "extract-data": "node packages/legacy-harness/scripts/extract-data.ts",
     "web:dev": "npm --workspace @sm/web run dev",
     "web:build": "npm --workspace @sm/web run build"

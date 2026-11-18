@@ -63,6 +63,14 @@ import {
   updateConfidence,
   type MatchOutcome,
   type ScoutRegion,
+  DEFAULT_TACTICS,
+  simulateMatch,
+  type MatchChange,
+  type MatchInput,
+  type MatchPlayer,
+  type MatchTeam,
+  type MatchTimeline,
+  type Tactics,
   changeFormation,
   swapPlayers,
   type SwapResult,
@@ -186,17 +194,73 @@ export class Game {
     return recordResult(this.state.calendar, fixtureId, result, { onEvent: this.onEvent });
   }
 
-  /**
-   * Simula o jogo do usuário em que o avanço parou (até existir o motor de
-   * partida da Fase 4, é o mesmo modelo dos outros jogos).
-   */
-  simulateUserMatch(fixtureId: string): CalendarEvent[] {
-    const cal = this.state.calendar;
-    const f = cal.fixtures[fixtureId];
+  /** Táticas do usuário (mentalidade, pressão, linha, ritmo). */
+  get tactics(): Tactics {
+    return (this.state as { tactics?: Tactics }).tactics ?? DEFAULT_TACTICS;
+  }
+
+  setTactics(t: Partial<Tactics>): void {
+    (this.state as { tactics?: Tactics }).tactics = { ...this.tactics, ...t };
+  }
+
+  /** Time pronto para o motor: o do usuário com a escalação dele; os outros com a automática. */
+  matchTeam(clubId: string): MatchTeam {
+    const squad = new Map(this.squad(clubId).map((p) => [p.id, p]));
+    const user = clubId === this.state.userClubId;
+    const lineup = user ? this.state.lineup : autoLineup(this.squad(clubId), '4-2-3-1', this.date);
+    const mp = (id: string): MatchPlayer | null => {
+      const p = squad.get(id);
+      const d = this.state.players[id];
+      return p && d ? { id, name: p.name, pos: p.pos, attrs: p.attrs, ovr: p.ovr, fitness: d.fitness, morale: d.morale } : null;
+    };
+    const xi = lineup.xi.map((s) => (s.playerId ? mp(s.playerId) : null));
+    // Slot vazio (elenco curto): o jogador da posição entra improvisado com o atributo do slot.
+    const filled = xi.map((p, i) => p ?? { id: `vazio-${clubId}-${i}`, name: '—', pos: lineup.xi[i]!.pos, attrs: { vel: 40, fin: 40, pas: 40, dri: 40, def: 40, fis: 40, gk: 40 }, ovr: 40, fitness: 100, morale: 50 });
+    return {
+      clubId,
+      formation: lineup.formation,
+      xi: filled.map((p, i) => ({ ...p, pos: lineup.xi[i]!.pos })),
+      bench: lineup.bench.map(mp).filter((p): p is MatchPlayer => !!p).slice(0, 12),
+      tactics: user ? this.tactics : DEFAULT_TACTICS,
+    };
+  }
+
+  matchInput(fixtureId: string): MatchInput {
+    const f = this.state.calendar.fixtures[fixtureId];
     if (!f) throw new Error(`Jogo inexistente: ${fixtureId}`);
-    const competition = cal.competitions[f.competitionId]!;
-    const r = this.play(f, { state: cal, competition, rng: createRng(this.state.seed).derive(`match:${f.id}`) });
-    return this.playUserMatch(fixtureId, r);
+    const user = this.state.userClubId;
+    return {
+      seed: `${this.state.seed}:match:${f.id}`,
+      home: this.matchTeam(f.home),
+      away: this.matchTeam(f.away),
+      neutral: f.roundName.startsWith('Final (jogo único)'),
+      manual: f.home === user ? ['home'] : f.away === user ? ['away'] : [],
+    };
+  }
+
+  /** Roda o motor completo para o jogo (com as mudanças feitas ao vivo). */
+  runMatch(fixtureId: string, changes: readonly MatchChange[] = []): MatchTimeline {
+    return simulateMatch(this.matchInput(fixtureId), changes);
+  }
+
+  /**
+   * Registra a partida do usuário simulada pelo motor: placar, desgaste pelo
+   * tempo em campo e moral pela nota. O desempate por pênaltis (mata-mata) é
+   * decidido pelo calendário.
+   */
+  finishUserMatch(fixtureId: string, changes: readonly MatchChange[] = []): { timeline: MatchTimeline; events: CalendarEvent[] } {
+    const timeline = this.runMatch(fixtureId, changes);
+    for (const [id, r] of Object.entries(timeline.ratings)) {
+      const p = this.state.players[id];
+      if (p) p.morale = clamp(p.morale + (r - 6.5) * 2, 30, 99);
+    }
+    this.changed();
+    return { timeline, events: this.playUserMatch(fixtureId, timeline.score) };
+  }
+
+  /** Simula o jogo do usuário em que o avanço parou, com o motor completo. */
+  simulateUserMatch(fixtureId: string): CalendarEvent[] {
+    return this.finishUserMatch(fixtureId).events;
   }
 
   /** Troca dois jogadores de lugar (XI, banco ou reservas). */
@@ -724,7 +788,8 @@ export class Game {
   /** Modelo rápido da v0.4 (Poisson pela diferença de força) até o motor de partida da Fase 4. */
   private readonly play: ResultProvider = (f, { rng, state }) => {
     const d = (this.strength(f.home, state.date) - this.strength(f.away, state.date)) / 7;
-    return { home: rng.poisson(clamp(1.44 + d * 0.48, 0.15, 3.6)), away: rng.poisson(clamp(1.04 - d * 0.48, 0.12, 3.3)) };
+    // Modelo rápido dos jogos da IA, calibrado com o motor completo (scripts/calibrate.ts e test/match.test.ts).
+    return { home: rng.poisson(clamp(1.42 + d * 0.48, 0.15, 3.6)), away: rng.poisson(clamp(1.08 - d * 0.48, 0.12, 3.3)) };
   };
 
   private news(date: IsoDate, title: string, body = ''): void {

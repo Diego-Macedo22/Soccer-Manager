@@ -46,11 +46,14 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 - **Olheiros**: até 6, contratados por 1,5 mi + 1,35 mi por olheiro já contratado; missões de 1 a 6 meses por região (Brasil, Inglaterra, Espanha, América do Sul ou agentes livres) e relatório com estimativas de OVR/POT que erram conforme a precisão
 - **Diretoria**: objetivos com peso (liga, copa, caixa e moral) pela reputação e divisão do clube; confiança da diretoria e da torcida pelos objetivos, pelos últimos 8 jogos e pelo caixa; a confiança da torcida mexe na bilheteria e nos produtos
 - **Técnico**: nota de 1 a 10 por resultado (com peso pela força do adversário), recorde V-E-D e histórico por temporada; avaliação no fim da liga, com demissão quando vai mal e propostas de clubes maiores quando vai bem
-- Resultados pelo modelo rápido da v0.4 (Poisson pela força do XI), até o motor de partida da Fase 4 ficar pronto
+- **Motor de partida** (`packages/core/src/match/`): cadeias de posse em campo contínuo (105 × 68), com o portador escolhendo passe, bola em profundidade, lançamento, drible, cruzamento ou chute. Os lances se resolvem em duelos de atributos (passe × marcação, drible × desarme, finalização × goleiro), com xG por distância e ângulo, faltas, cartões, pênaltis e escanteios. Energia, moral, mentalidade (5 níveis), pressão, linha e ritmo entram no cálculo. É determinístico: mesma semente, mesma partida
+- Calibrado com 1000 jogos (`npm run calibrate`) dentro de faixas de ligas reais: cerca de 2,5 gols, 44% de vitórias do mandante, 24% de empates, 23 chutes, 9 no alvo e 11% de aproveitamento por jogo. Os jogos da IA usam um modelo rápido (Poisson) calibrado com o motor
+- Placar, estatísticas e notas são derivados dos eventos da partida (corrige B9)
 
 **Interface web (`apps/web`, Vite + Preact)**
 - Nova carreira e "continuar carreira salva"
 - Painel com próximo jogo, posição, últimos resultados e notícias; avança 1 semana ou 1 mês e para no dia do jogo
+- **Partida ao vivo em 2D**: campo com os 22 jogadores, relógio acelerado (1×, 3× ou melhores momentos, que desacelera nos lances importantes), narração, estatísticas, pausa automática no intervalo, até 5 substituições em 3 janelas (o intervalo não conta, regra IFAB) e mudança de mentalidade durante o jogo; ou "Simular resultado" com o mesmo motor
 - Elenco e tática com campo, banco e reservas; Mercado com filtros, proposta ajustável, contratos do elenco e olheiros; Base com relatórios e promoção; Diretoria com objetivos, confianças, nota e propostas de emprego; Competições com classificação e zonas; Finanças com caixa, folha e extrato
 - A carreira roda num **Web Worker**, então a tela não trava
 - Save no **IndexedDB**, gravado após cada ação
@@ -59,7 +62,7 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 **Base de dados (`packages/data`)**
 - Clubes e jogadores com nomes fictícios, extraídos do legado e validados por testes
 
-**Ainda falta na v0.6** (existe só na v0.5): partida ao vivo com narração e PWA.
+**Ainda falta na v0.6** (existe só na v0.5): PWA e importação de save da v0.5 pela interface.
 
 ## O que existe na v0.5 legado
 
@@ -143,6 +146,7 @@ Abra `http://localhost:3000`. O save da v0.5 fica no `localStorage`.
 | `npm run test:legacy` | Reproduções dos bugs do legado |
 | `npm run typecheck` | Tipos em modo `strict` nos pacotes e na web |
 | `npm run characterize` | Regera o golden master do legado |
+| `npm run calibrate` | Roda 1000 jogos no motor e mostra as médias (gols, chutes, mando…) |
 | `npm run extract-data` | Extrai clubes e jogadores do legado para `packages/data` |
 
 O CI (`.github/workflows/ci.yml`) roda tipos, testes, build da web e sintaxe do legado a cada push.
@@ -184,7 +188,7 @@ docs/
 ## Próximos passos
 
 1. **Fase 3, restante:** importação de save da v0.5 pela interface e PWA.
-2. **Fase 4:** motor de partida próprio, determinístico, que gera uma linha do tempo de eventos, com melhores momentos em 2D e narração.
+2. **Fase 4, restante:** artilharia e notas por competição, lesões durante o jogo e troca de formação ao vivo.
 3. **Fases 5 a 7:** partidas em 3D com **Three.js**, usando modelos e animações do Blender + Mixamo, com câmera de transmissão e replays.
 4. **Fase 8:** controles por teclado, gamepad e toque.
 5. **Depois:** app para celular (Capacitor), modo jogável controlando o time, Carreira de Jogador controlando o próprio atleta e saves na nuvem.

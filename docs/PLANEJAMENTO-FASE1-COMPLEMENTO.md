@@ -761,6 +761,18 @@ Bugs de regulamento da v0.5 corrigidos: a Taça Continental era um pontos corrid
 - PWA (manifest e service worker).
 - Avisos de mudança de escalação como toast.
 
+## 7.4 Status da Fase 4 (motor de partida)
+
+### Motor + viewer 2D: ✅ (MVP)
+
+- `packages/core/src/match/engine.ts`: cadeias de posse com espaço contínuo, utilidade por ação, duelos de atributos, xG por distância/ângulo, faltas, cartões, pênaltis, escanteios, energia e moral. Determinístico.
+- Mudanças ao vivo (`MatchChange`: substituição, táticas, formação) re-simulam a partida com a mesma semente: tudo antes do minuto da mudança é idêntico.
+- O visualizador reconstrói as posições dos 22 jogadores a partir da bola e das âncoras táticas (`positionsAt`), sem frames no save.
+- Calibração (`npm run calibrate`, 1000 jogos): 2,47 gols, 44% mandante, 24% empates, 23,4 chutes, 8,8 no alvo, 10,6% de conversão, 28 faltas, 0,29 vermelho. Modelo rápido da IA ajustado para a mesma distribuição (2,4 gols, 47% mandante e 25% empates) e checado em teste.
+- Tela ao vivo (`apps/web/src/match.tsx`): campo 2D em Canvas, placar, relógio, narração, estatísticas, melhores momentos, pausa no intervalo, 5 substituições em 3 janelas e mentalidade.
+
+**Falta:** artilharia e notas acumuladas por competição, lesões no jogo, troca de formação na tela ao vivo.
+
 ## 8. Decisões que dependem de você
 
 1. ~~**Legado:** v0.5.1 ou base modular~~ → **Decidido: base modular direto** (ver 2.3).
