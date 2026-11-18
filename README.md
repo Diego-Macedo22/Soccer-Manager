@@ -8,14 +8,49 @@ A proposta mistura a **profundidade de um manager** (tabelas densas, finanças, 
 
 ---
 
+## Versão atual: 0.6.0-dev
+
+O jogo está sendo reconstruído sobre uma **base modular em TypeScript**. A v0.5 acumulou sete camadas de remendo no mesmo `app.js`, e cada correção numa camada desfazia outra. A nova base separa as regras do jogo da interface, roda a carreira num Web Worker e protege cada sistema com testes.
+
+| Parte | Situação |
+|---|---|
+| **v0.6 (web, `apps/web`)** | MVP jogável: nova carreira, painel, elenco e tática, competições e finanças. |
+| **v0.5 legado (`game/`)** | Congelada como referência e para os testes de regressão. Continua jogável. |
+
+O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAMENTO-FASE1-COMPLEMENTO.md](docs/PLANEJAMENTO-FASE1-COMPLEMENTO.md).
+
 ## Modos de jogo
 
 | Modo | Situação |
 |---|---|
-| **Carreira de Técnico** | Disponível. Escolha um dos 40 clubes brasileiros e gerencie tudo. |
+| **Carreira de Técnico** | Disponível. Escolha um dos clubes e gerencie tudo. |
 | **Carreira de Jogador** | Planejado. Crie um atleta, evolua atributos, dispute posição no elenco e receba propostas. |
 
-## O que já existe no jogo
+## O que já existe na v0.6
+
+**Carreira (`packages/game`)**
+- Calendário multi-temporada: Brasil de janeiro a dezembro e Europa de agosto a maio, com data global contínua (corrige a data que voltava 7 meses e as ligas europeias que nunca terminavam)
+- Liga Nacional, Copa Nacional e ligas inglesa e espanhola simuladas em paralelo
+- Finanças por mês: folha salarial cobrada (antes nunca era), bilheteria, produtos e aporte da diretoria, com extrato que bate com o caixa
+- Elenco e escalação: formações, adequação à posição, escalação automática e troca de titular por clique
+- Evolução mensal dos jogadores com OVR coerente com os atributos, lesões, desgaste, idade e contratos a cada temporada
+- Save versionado, com migrações e conversão de saves da v0.5 (a importação pela interface ainda falta)
+- Resultados pelo modelo rápido da v0.4 (Poisson pela força do XI), até o motor de partida da Fase 4 ficar pronto
+
+**Interface web (`apps/web`, Vite + Preact)**
+- Nova carreira e "continuar carreira salva"
+- Painel com próximo jogo, posição, últimos resultados e notícias; avança 1 semana ou 1 mês e para no dia do jogo
+- Elenco e tática com campo, banco e reservas; Competições com classificação e zonas; Finanças com caixa, folha e extrato
+- A carreira roda num **Web Worker**, então a tela não trava
+- Save no **IndexedDB**, gravado após cada ação
+- Layout mobile-first: abas embaixo no celular e barra lateral a partir de 768 px; modo claro e escuro pelo sistema
+
+**Base de dados (`packages/data`)**
+- Clubes e jogadores com nomes fictícios, extraídos do legado e validados por testes
+
+**Ainda falta na v0.6** (existe só na v0.5): mercado, olheiros, categoria de base, competições continentais, partida ao vivo com narração, PWA.
+
+## O que existe na v0.5 legado
 
 **Competições e temporada**
 - Liga Nacional Séries A e B (20 + 20 clubes), com acesso e rebaixamento de 4 clubes
@@ -58,16 +93,48 @@ O tema **Modo Carreira** (`game/frontend/css/theme-career.css`) traz:
 - Tabelas compactas, com faixas de classificação e rebaixamento
 - Modo escuro (padrão) e claro
 
+A v0.6 reaproveita os mesmos tokens do tema (cores, tipografia condensada e níveis de OVR).
+
 ## Como rodar
 
-Requer **Node.js 20+**. Não há dependências npm.
+Requer **Node.js 24+**.
 
 ```bash
-cd game
-npm start
+npm install
 ```
 
-Abra `http://localhost:3000`. O save fica no navegador (`localStorage`).
+**v0.6 (interface web):**
+
+```bash
+npm run web:dev
+```
+
+Abra `http://localhost:5173`. Para gerar a versão de produção em `apps/web/dist`:
+
+```bash
+npm run web:build
+```
+
+**v0.5 legado:**
+
+```bash
+npm run legacy:start
+```
+
+Abra `http://localhost:3000`. O save da v0.5 fica no `localStorage`.
+
+**Testes e verificações:**
+
+| Comando | O que faz |
+|---|---|
+| `npm test` | Todos os testes (cerca de 1 min) |
+| `npm run test:core` | Só as regras do jogo (rápido) |
+| `npm run test:legacy` | Reproduções dos bugs do legado |
+| `npm run typecheck` | Tipos em modo `strict` nos pacotes e na web |
+| `npm run characterize` | Regera o golden master do legado |
+| `npm run extract-data` | Extrai clubes e jogadores do legado para `packages/data` |
+
+O CI (`.github/workflows/ci.yml`) roda tipos, testes, build da web e sintaxe do legado a cada push.
 
 ## Nomes fictícios
 
@@ -85,23 +152,28 @@ Os nomes são gerados por regras determinísticas, como troca de consoantes (t�
 ## Estrutura
 
 ```text
-game/
-├── frontend/
-│   ├── index.html
-│   ├── css/main.css            # estilos base
-│   ├── css/theme-career.css    # tema Modo Carreira
-│   └── js/
-│       ├── fictional-names.js  # gerador de nomes fictícios
-│       ├── api.js
-│       └── app.js              # jogo (dados + lógica + telas)
-├── backend/                    # servidor Node (estático + /api/health)
-└── tools/fictionalize.js
+apps/
+└── web/                    # interface v0.6 (Vite + Preact)
+    └── src/
+        ├── app.tsx         # telas
+        ├── worker.ts       # carreira no Web Worker
+        ├── protocol.ts     # comandos e View trocados com o worker
+        └── idb-store.ts    # save no IndexedDB
+packages/
+├── core/                   # regras puras, sem DOM e determinísticas
+│   └── src/                # calendar, finance, squad, development, save, rng, invariants
+├── data/                   # base de clubes e jogadores + adaptadores de save
+├── game/                   # classe Game: liga todos os módulos ao calendário
+└── legacy-harness/         # roda a v0.5 em Node com semente, para testes de regressão
+game/                       # v0.5 legado (congelada)
+docs/
+└── PLANEJAMENTO-FASE1-COMPLEMENTO.md   # diagnóstico, arquitetura e status das fases
 ```
 
 ## Próximos passos
 
-1. **Carreira de Jogador**: criação do atleta, treino, minutos jogados e propostas.
-2. Migração para **Godot 4**, com o banco de dados em SQLite e a simulação separada da interface.
-3. Atributos mais completos (escala 1–20: técnicos, mentais e físicos) e contratos detalhados.
-4. Editor de dados, para que o jogador possa renomear clubes e atletas.
-5. Partidas em 3D no estilo melhores momentos (Blender + Mixamo + Godot).
+1. **Fase 3, restante:** telas de mercado, olheiros e base, importação de save da v0.5 pela interface e PWA.
+2. **Fase 4:** motor de partida próprio, determinístico, que gera uma linha do tempo de eventos, com melhores momentos em 2D e narração.
+3. **Fases 5 a 7:** partidas em 3D com **Three.js**, usando modelos e animações do Blender + Mixamo, com câmera de transmissão e replays.
+4. **Fase 8:** controles por teclado, gamepad e toque.
+5. **Depois:** Carreira de Jogador, app para celular (Capacitor) e saves na nuvem.
