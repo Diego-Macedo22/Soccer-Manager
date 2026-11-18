@@ -14,3 +14,14 @@ soccer_manager_v032.zip
 soccer_manager_v040.zip
 Soccer Manager v0.1.odt
 versoes antigas
+
+# --- Fase 1: nova base modular ---
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Ferramentas e assets brutos (grandes demais para o git)
+/blender-*/
+/Soccer Game Pack.zip
+/assets-src/

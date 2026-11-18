@@ -1,0 +1,10 @@
+{
+  "name": "@sm/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Regras do jogo em TypeScript puro: sem DOM, determinístico, testável em Node.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

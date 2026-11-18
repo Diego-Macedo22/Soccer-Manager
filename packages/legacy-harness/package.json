@@ -1,0 +1,13 @@
+{
+  "name": "@sm/legacy-harness",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Executa o jogo legado (game/frontend/js/app.js) sem navegador, com RNG semeado, para caracterização e testes de regressão.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sm/core": "0.0.0"
+  }
+}

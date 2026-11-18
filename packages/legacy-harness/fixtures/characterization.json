@@ -1,0 +1,572 @@
+{
+  "description": "Golden master estatístico do legado v0.5. Finanças excluídas (B1). Copa e ligas europeias refletem B3/B4. Regenerar com `npm run characterize` só se o legado mudar de propósito.",
+  "legacyAppSha256": "585818a2c1ddd73717968c97abbc3e416944a837ec80a8865db62dd3ae604f71",
+  "scenario": {
+    "club": "corinthians",
+    "from": "2026-01-05",
+    "to": "2026-12-20"
+  },
+  "aggregate": {
+    "leagues": {
+      "brA": {
+        "games": {
+          "mean": 380,
+          "min": 380,
+          "max": 380
+        },
+        "goalsPerGame": {
+          "mean": 2.569,
+          "min": 2.468,
+          "max": 2.747
+        },
+        "homeWinRate": {
+          "mean": 0.474,
+          "min": 0.442,
+          "max": 0.5
+        },
+        "drawRate": {
+          "mean": 0.216,
+          "min": 0.182,
+          "max": 0.25
+        },
+        "awayWinRate": {
+          "mean": 0.31,
+          "min": 0.276,
+          "max": 0.347
+        },
+        "championPoints": {
+          "mean": 88.625,
+          "min": 78,
+          "max": 97
+        },
+        "firstRelegatedPoints": {
+          "mean": 28.25,
+          "min": 20,
+          "max": 36
+        },
+        "topScorerGoals": {
+          "mean": 17.625,
+          "min": 17,
+          "max": 19
+        }
+      },
+      "brB": {
+        "games": {
+          "mean": 380,
+          "min": 380,
+          "max": 380
+        },
+        "goalsPerGame": {
+          "mean": 2.509,
+          "min": 2.321,
+          "max": 2.774
+        },
+        "homeWinRate": {
+          "mean": 0.466,
+          "min": 0.442,
+          "max": 0.484
+        },
+        "drawRate": {
+          "mean": 0.242,
+          "min": 0.216,
+          "max": 0.268
+        },
+        "awayWinRate": {
+          "mean": 0.293,
+          "min": 0.268,
+          "max": 0.308
+        },
+        "championPoints": {
+          "mean": 83.5,
+          "min": 75,
+          "max": 91
+        },
+        "firstRelegatedPoints": {
+          "mean": 30.625,
+          "min": 25,
+          "max": 36
+        },
+        "topScorerGoals": {
+          "mean": 20,
+          "min": 17,
+          "max": 26
+        }
+      }
+    },
+    "cup": {
+      "finished": {
+        "trueRate": 0
+      },
+      "played": {
+        "mean": 16,
+        "min": 16,
+        "max": 16
+      },
+      "total": {
+        "mean": 24,
+        "min": 24,
+        "max": 24
+      }
+    },
+    "development": {
+      "youngCount": {
+        "mean": 371,
+        "min": 371,
+        "max": 371
+      },
+      "youngAvgOvrDelta": {
+        "mean": -2.698,
+        "min": -2.728,
+        "max": -2.677
+      },
+      "veteranCount": {
+        "mean": 154,
+        "min": 154,
+        "max": 154
+      },
+      "veteranAvgOvrDelta": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "market": {
+      "aiPlayersChangedClub": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "user": {
+      "position": {
+        "mean": 5.25,
+        "min": 1,
+        "max": 11
+      },
+      "points": {
+        "mean": 71,
+        "min": 57,
+        "max": 82
+      },
+      "played": {
+        "mean": 38,
+        "min": 38,
+        "max": 38
+      }
+    },
+    "academy": {
+      "candidates": {
+        "mean": 8.875,
+        "min": 7,
+        "max": 11
+      }
+    },
+    "saveSizeChars": {
+      "mean": 1540610.75,
+      "min": 1539798,
+      "max": 1541352
+    }
+  },
+  "perSeed": [
+    {
+      "seed": 1,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.521,
+            "homeWinRate": 0.479,
+            "drawRate": 0.232,
+            "awayWinRate": 0.289,
+            "championPoints": 97,
+            "firstRelegatedPoints": 36,
+            "topScorerGoals": 17
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.511,
+            "homeWinRate": 0.458,
+            "drawRate": 0.237,
+            "awayWinRate": 0.305,
+            "championPoints": 81,
+            "firstRelegatedPoints": 34,
+            "topScorerGoals": 19
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.704,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 2,
+          "points": 79,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 10
+        },
+        "saveSizeChars": 1540796
+      }
+    },
+    {
+      "seed": 2,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.613,
+            "homeWinRate": 0.461,
+            "drawRate": 0.192,
+            "awayWinRate": 0.347,
+            "championPoints": 86,
+            "firstRelegatedPoints": 20,
+            "topScorerGoals": 19
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.482,
+            "homeWinRate": 0.468,
+            "drawRate": 0.25,
+            "awayWinRate": 0.282,
+            "championPoints": 90,
+            "firstRelegatedPoints": 25,
+            "topScorerGoals": 22
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.728,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 11,
+          "points": 58,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 11
+        },
+        "saveSizeChars": 1541352
+      }
+    },
+    {
+      "seed": 3,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.747,
+            "homeWinRate": 0.471,
+            "drawRate": 0.203,
+            "awayWinRate": 0.326,
+            "championPoints": 89,
+            "firstRelegatedPoints": 23,
+            "topScorerGoals": 18
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.468,
+            "homeWinRate": 0.479,
+            "drawRate": 0.224,
+            "awayWinRate": 0.297,
+            "championPoints": 91,
+            "firstRelegatedPoints": 36,
+            "topScorerGoals": 17
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.698,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 3,
+          "points": 82,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 7
+        },
+        "saveSizeChars": 1539798
+      }
+    },
+    {
+      "seed": 4,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.468,
+            "homeWinRate": 0.492,
+            "drawRate": 0.232,
+            "awayWinRate": 0.276,
+            "championPoints": 90,
+            "firstRelegatedPoints": 34,
+            "topScorerGoals": 17
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.434,
+            "homeWinRate": 0.442,
+            "drawRate": 0.268,
+            "awayWinRate": 0.289,
+            "championPoints": 84,
+            "firstRelegatedPoints": 30,
+            "topScorerGoals": 19
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.693,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 5,
+          "points": 70,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 7
+        },
+        "saveSizeChars": 1540457
+      }
+    },
+    {
+      "seed": 5,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.547,
+            "homeWinRate": 0.442,
+            "drawRate": 0.25,
+            "awayWinRate": 0.308,
+            "championPoints": 78,
+            "firstRelegatedPoints": 31,
+            "topScorerGoals": 17
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.774,
+            "homeWinRate": 0.466,
+            "drawRate": 0.237,
+            "awayWinRate": 0.297,
+            "championPoints": 75,
+            "firstRelegatedPoints": 29,
+            "topScorerGoals": 26
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.677,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 1,
+          "points": 78,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 8
+        },
+        "saveSizeChars": 1540020
+      }
+    },
+    {
+      "seed": 6,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.597,
+            "homeWinRate": 0.458,
+            "drawRate": 0.213,
+            "awayWinRate": 0.329,
+            "championPoints": 88,
+            "firstRelegatedPoints": 29,
+            "topScorerGoals": 18
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.608,
+            "homeWinRate": 0.476,
+            "drawRate": 0.216,
+            "awayWinRate": 0.308,
+            "championPoints": 83,
+            "firstRelegatedPoints": 25,
+            "topScorerGoals": 18
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.69,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 4,
+          "points": 74,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 9
+        },
+        "saveSizeChars": 1541036
+      }
+    },
+    {
+      "seed": 7,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.468,
+            "homeWinRate": 0.492,
+            "drawRate": 0.221,
+            "awayWinRate": 0.287,
+            "championPoints": 92,
+            "firstRelegatedPoints": 25,
+            "topScorerGoals": 17
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.474,
+            "homeWinRate": 0.484,
+            "drawRate": 0.247,
+            "awayWinRate": 0.268,
+            "championPoints": 84,
+            "firstRelegatedPoints": 30,
+            "topScorerGoals": 20
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.685,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 11,
+          "points": 57,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 9
+        },
+        "saveSizeChars": 1540676
+      }
+    },
+    {
+      "seed": 8,
+      "metrics": {
+        "leagues": {
+          "brA": {
+            "games": 380,
+            "goalsPerGame": 2.587,
+            "homeWinRate": 0.5,
+            "drawRate": 0.182,
+            "awayWinRate": 0.318,
+            "championPoints": 89,
+            "firstRelegatedPoints": 28,
+            "topScorerGoals": 18
+          },
+          "brB": {
+            "games": 380,
+            "goalsPerGame": 2.321,
+            "homeWinRate": 0.453,
+            "drawRate": 0.253,
+            "awayWinRate": 0.295,
+            "championPoints": 80,
+            "firstRelegatedPoints": 36,
+            "topScorerGoals": 19
+          }
+        },
+        "cup": {
+          "finished": false,
+          "played": 16,
+          "total": 24
+        },
+        "development": {
+          "youngCount": 371,
+          "youngAvgOvrDelta": -2.712,
+          "veteranCount": 154,
+          "veteranAvgOvrDelta": 0
+        },
+        "market": {
+          "aiPlayersChangedClub": 0
+        },
+        "user": {
+          "position": 5,
+          "points": 70,
+          "played": 38
+        },
+        "academy": {
+          "candidates": 10
+        },
+        "saveSizeChars": 1540751
+      }
+    }
+  ]
+}

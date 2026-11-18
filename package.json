@@ -1,0 +1,25 @@
+{
+  "name": "soccer-manager",
+  "version": "0.6.0-dev",
+  "private": true,
+  "description": "Soccer Manager — base modular (Fase 1: rede de segurança). O jogo legado v0.5 continua em game/.",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"packages/*/test/**/*.test.ts\"",
+    "test:core": "node --test \"packages/core/test/**/*.test.ts\"",
+    "test:legacy": "node --test \"packages/legacy-harness/test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "characterize": "node packages/legacy-harness/scripts/characterize.ts",
+    "legacy:start": "npm --prefix game start"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  }
+}
