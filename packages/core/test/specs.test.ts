@@ -44,10 +44,12 @@ describe('partida (match-engine)', () => {
   test.todo('mesma seed + mesmas entradas = mesma partida');
 });
 
-describe('persistência (core/save)', () => {
-  test.todo('B7: save com schemaVersion e migrações encadeadas V02→V032→V04→V05→atual');
-  test.todo('B7: save não guarda a base estática e tem limite de tamanho; notícias/extrato resumidos por temporada');
-  test.todo('B7: falha de gravação não deixa o estado em memória divergente do salvo');
+// Persistência (B7): implementado na Fase 2 — ver packages/data/test/save.test.ts
+// e packages/legacy-harness/test/legacy-save-import.test.ts.
+
+describe('persistência: integração com o jogo (Fase 3)', () => {
+  test.todo('compactCalendar roda automaticamente na abertura de cada temporada (sem ela, 3 temporadas ≈ 2,2 mi de caracteres)');
+  test.todo('adaptador IndexedDB do SaveStore na web, com o mesmo contrato do MemoryStore');
   test.todo('B8: partida ao vivo salva apenas em pontos de controle (intervalo, fim), não a cada minuto');
 });
 

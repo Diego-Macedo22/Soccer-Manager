@@ -614,12 +614,60 @@ Também foram padronizados os países e as nacionalidades, que misturavam portug
 
 **Teste de integração:** uma temporada inteira com os 80 clubes e elencos reais respeita as invariantes. Todos os clubes escalam um XI válido, o campeão da Série A está entre os mais fortes e a Copa só tem clubes brasileiros.
 
+### Save (`packages/core/src/save/` e `packages/data/src/career.ts`): ✅
+
+**Formato:**
+
+- Envelope `soccer-manager-save` com `schemaVersion` e uma cadeia de migrações (v1 → v2 → …). Acaba a troca de chave de `localStorage` a cada versão.
+- Saves corrompidos, de versão futura ou sem migração são recusados com o motivo.
+- O save guarda só o estado dinâmico: calendário, extrato, escalação, o que muda nos jogadores e as notícias (até 200). Nomes e dados de base vêm de `@sm/data`.
+
+**Gravação segura:** `writeSave` verifica o limite de 2,5 milhões de caracteres antes de gravar. Se o armazenamento falhar (cota), o save anterior continua intacto e o estado em memória não muda. `SaveStore` é a interface; `MemoryStore` existe para os testes, e o adaptador de IndexedDB vem na Fase 3.
+
+**Compactação:** `compactCalendar` remove os jogos de temporadas encerradas e mantém tabelas e campeões.
+
+| Situação | Tamanho do save |
+|---|---|
+| Carreira nova | 0,53 milhão de caracteres (v0.5: 1,3 milhão) |
+| Após 3 temporadas, sem compactar | 2,2 milhões |
+| Após 3 temporadas, compactado | 1,08 milhão |
+
+Por isso a compactação precisa rodar a cada abertura de temporada, o que fica para a integração da Fase 3.
+
+**Carreira e importação:**
+
+- `createCareer` monta uma carreira nova a partir da base.
+- `importLegacySave` converte um save da v0.5 usando o `legacy-id-map`. Preserva clube, técnico, caixa, divisões, transferências, estado dos jogadores e a escalação, reconciliada.
+
+**Limitação assumida:** a temporada em andamento no save antigo não é reconstruída, porque o calendário antigo tinha B2–B4. A carreira importada continua na temporada seguinte. O caixa vem como está, inflado pelo B1.
+
+**Testes:**
+
+- Ida e volta sem perda.
+- Save sem a base estática.
+- Migração em cadeia.
+- Recusa de save inválido.
+- Limite de tamanho.
+- Cota estourada preservando o save anterior.
+- Compactação após 3 temporadas com as invariantes valendo.
+- Importação de um save real da v0.5 (Flamengo, junho de 2026): elenco completo, XI válido e save novo menor que o antigo.
+
 ### Próximos módulos da Fase 2
 
 1. ~~**Finanças**~~ ✅
 2. ~~**Elenco e escalação**~~ ✅
 3. ~~**Evolução**~~ ✅
 4. ~~**Dados**~~ ✅
+5. ~~**Save**~~ ✅
+
+**A Fase 2 está concluída.** Ainda faltam:
+
+- O motor de partida (Fase 4). Por enquanto o placar vem de um `ResultProvider`.
+- Mercado, olheiros e base.
+- Competições continentais.
+- A "camada de jogo" que liga tudo no `onEvent`.
+
+O próximo passo natural é a **Fase 3 (interface)** ou a camada de jogo que ela vai usar.
 3. **Evolução:** OVR coerente com os atributos (B17).
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
 5. **Save:** versão de schema e migrações (B7).

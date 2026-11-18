@@ -9,6 +9,7 @@ import type { ClubData, Database, PlayerData } from './types.ts';
 export * from './types.ts';
 export * from './convert.ts';
 export * from './validate.ts';
+export * from './career.ts';
 
 /** Base inicial do jogo (cópia nova a cada chamada: a carreira pode alterá-la). */
 export function loadDatabase(): Database {
