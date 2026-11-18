@@ -53,7 +53,29 @@ export interface AdvanceOptions {
   pauseOn?: (fixture: Fixture) => boolean;
   /** Chamado na data exata de cada evento periódico (folha, mercado, base…). */
   onTick?: (tick: TickKind, state: CalendarState) => void;
+  /**
+   * Chamado no momento em que cada evento acontece (jogo disputado, temporada
+   * aberta, competição encerrada…), com o mundo naquela data. É por aqui que
+   * finanças, mercado e notícias reagem ao calendário.
+   */
+  onEvent?: EventListener;
   cycles?: readonly CycleDef[];
+}
+
+export type EventListener = (event: CalendarEvent, state: CalendarState) => void;
+
+/** Destino dos eventos internos: guarda na lista e avisa o ouvinte na hora. */
+interface EventSink {
+  push(event: CalendarEvent): unknown;
+}
+
+function sink(events: CalendarEvent[], state: CalendarState, listener?: EventListener): EventSink {
+  return {
+    push(event) {
+      events.push(event);
+      listener?.(event, state);
+    },
+  };
 }
 
 export interface AdvanceResult {
@@ -120,6 +142,7 @@ export function advanceTo(state: CalendarState, target: IsoDate, opts: AdvanceOp
   }
   const cycles = opts.cycles ?? DEFAULT_CYCLES;
   const events: CalendarEvent[] = [];
+  const out = sink(events, state, opts.onEvent);
   for (;;) {
     const next = state.agenda[0];
     if (!next || compareDates(next.date, target) > 0) break;
@@ -132,7 +155,7 @@ export function advanceTo(state: CalendarState, target: IsoDate, opts: AdvanceOp
     }
     state.agenda.shift();
     state.date = laterOf(state.date, next.date);
-    handle(state, next, opts, cycles, events);
+    handle(state, next, opts, cycles, out);
   }
   state.date = target;
   return { events, pausedAt: null };
@@ -143,15 +166,16 @@ export function recordResult(
   state: CalendarState,
   fixtureId: string,
   result: { home: number; away: number; winnerId?: string | null },
-  cycles: readonly CycleDef[] = DEFAULT_CYCLES,
+  opts: { cycles?: readonly CycleDef[]; onEvent?: EventListener } = {},
 ): CalendarEvent[] {
+  const cycles = opts.cycles ?? DEFAULT_CYCLES;
   const f = state.fixtures[fixtureId];
   if (!f) throw new Error(`Jogo inexistente: ${fixtureId}`);
   if (f.result) throw new Error(`Jogo já disputado: ${fixtureId}`);
   if (compareDates(f.date, state.date) > 0) throw new Error(`Jogo ${fixtureId} é em ${f.date}; hoje é ${state.date}`);
   state.agenda = state.agenda.filter((e) => !(e.kind === 'fixture' && e.fixtureId === fixtureId));
   const events: CalendarEvent[] = [];
-  applyResult(state, f, result, cycles, events);
+  applyResult(state, f, result, cycles, sink(events, state, opts.onEvent));
   return events;
 }
 
@@ -171,7 +195,7 @@ export function involves(clubId: string): (f: Fixture) => boolean {
 
 // ---------------------------------------------------------------------------
 
-function handle(state: CalendarState, e: AgendaEntry, opts: AdvanceOptions, cycles: readonly CycleDef[], events: CalendarEvent[]): void {
+function handle(state: CalendarState, e: AgendaEntry, opts: AdvanceOptions, cycles: readonly CycleDef[], events: EventSink): void {
   switch (e.kind) {
     case 'weekly':
     case 'monthly': {
@@ -202,7 +226,7 @@ function applyResult(
   f: Fixture,
   raw: { home: number; away: number; winnerId?: string | null },
   cycles: readonly CycleDef[],
-  events: CalendarEvent[],
+  events: EventSink,
 ): void {
   const comp = state.competitions[f.competitionId];
   if (!comp) throw new Error(`Competição inexistente: ${f.competitionId}`);
@@ -239,7 +263,7 @@ function applyResult(
   createKnockoutRound(state, comp, def as KnockoutDef, winners, f.round + 1);
 }
 
-function finish(state: CalendarState, comp: CompetitionInstance, championId: string | null, cycles: readonly CycleDef[], events: CalendarEvent[]): void {
+function finish(state: CalendarState, comp: CompetitionInstance, championId: string | null, cycles: readonly CycleDef[], events: EventSink): void {
   comp.status = 'finished';
   comp.championId = championId;
   events.push({ type: 'competition-finished', date: state.date, competitionId: comp.id, championId });
@@ -249,7 +273,7 @@ function finish(state: CalendarState, comp: CompetitionInstance, championId: str
   }
 }
 
-function openSeason(state: CalendarState, cycle: CycleDef, year: number, events: CalendarEvent[]): void {
+function openSeason(state: CalendarState, cycle: CycleDef, year: number, events: EventSink): void {
   const progress = (state.cycles[cycle.id] ??= { openedYear: null, waitingYear: null });
   const running = Object.values(state.competitions).filter((c) => c.cycleId === cycle.id && c.startYear < year && c.status === 'running');
   if (running.length) {
@@ -335,7 +359,7 @@ function createKnockoutRound(state: CalendarState, comp: CompetitionInstance, de
   for (const [home, away] of knockoutPairs(clubIds, rng)) addFixture(state, comp, { date, round, roundName: name, home, away });
 }
 
-function applyPromotion(state: CalendarState, cycle: CycleDef, prevYear: number, events: CalendarEvent[]): void {
+function applyPromotion(state: CalendarState, cycle: CycleDef, prevYear: number, events: EventSink): void {
   const key = seasonKey(cycle, prevYear);
   for (const rule of cycle.promotion ?? []) {
     const upper = state.competitions[competitionInstanceId(rule.upper, key)];

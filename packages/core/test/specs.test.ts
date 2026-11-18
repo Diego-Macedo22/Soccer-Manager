@@ -19,10 +19,12 @@ describe('evolução (core/development)', () => {
   test.todo('jovens com minutos evoluem em média; veteranos declinam gradualmente (comparar com a caracterização)');
 });
 
-describe('finanças (core/finance)', () => {
-  test.todo('B1: folha salarial debitada uma vez por mês, qualquer que seja o tamanho do avanço');
-  test.todo('B1: receitas de produtos por competência (semanal/mensal) independem da frequência de avanço');
-  test.todo('toda variação de caixa tem lançamento no extrato (budgetMatchesLedger)');
+// Finanças (B1 e "toda variação de caixa tem lançamento"): implementado na
+// Fase 2 — ver test/finance.test.ts.
+
+describe('finanças: integrações futuras', () => {
+  test.todo('mercado, luvas, rescisões e melhorias da base usam spend/receive (nunca alteram o saldo direto)');
+  test.todo('extrato resumido por temporada no save, preservando a invariante de caixa (B7)');
 });
 
 describe('elenco e escalação (core/squad)', () => {

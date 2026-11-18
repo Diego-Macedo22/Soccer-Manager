@@ -9,7 +9,16 @@
 
 import { compareDates, monthKey, monthStartsBetween, type IsoDate } from './dates.ts';
 
-export type LedgerKind = 'payroll' | 'gate' | 'merchandise' | 'transfer' | 'bonus' | 'other';
+export type LedgerKind =
+  | 'payroll'
+  | 'gate'
+  | 'merchandise'
+  | 'transfer'
+  | 'bonus'
+  | 'release'
+  | 'board'
+  | 'facility'
+  | 'other';
 
 export interface SnapshotLedgerEntry {
   date: IsoDate;

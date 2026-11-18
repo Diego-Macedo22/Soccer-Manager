@@ -489,9 +489,41 @@ No modo manager, o motor roda acelerado e grava a timeline. No modo jogável, el
 
 **Ainda não incluído:** as competições continentais e a qualificação para elas, que o legado só criava para o clube do usuário.
 
+### Finanças (`packages/core/src/finance/`): ✅
+
+**Extrato:**
+
+- O saldo só muda por `receive`, `spend` ou `charge`, e cada chamada gera um lançamento. Não existe alteração solta do saldo.
+- `spend` recusa a operação quando falta caixa e não altera nada. O legado chegava a pagar luvas parciais em silêncio.
+- `charge` é para saídas obrigatórias, como a folha, que pode deixar o caixa negativo.
+- Uma `ref` única por lançamento impede cobrança em dobro (ex.: `gate:<jogo>`).
+
+**Fórmulas:** bilheteria, produtos e aporte da diretoria usam os mesmos números da v0.5. Os testes conferem os valores exatos.
+
+**Integração com o calendário:**
+
+- O calendário ganhou o gancho `onEvent`, que avisa no instante de cada evento, e `recordResult` passou a aceitar o mesmo ouvinte.
+- `createFinanceListener` faz os lançamentos de cada evento:
+
+  | Evento | Lançamento |
+  |---|---|
+  | Dia 1 do mês | Folha salarial |
+  | Toda semana | Produtos e camisas |
+  | Jogo em casa | Bilheteria |
+  | Nova temporada do ciclo do clube | Aporte da diretoria (só a partir da segunda) |
+
+- O aporte é decidido pelo estado salvo, e por isso continua correto depois de carregar um save.
+
+**Testes** (`packages/core/test/finance.test.ts`):
+
+- B1 numa temporada inteira, com as invariantes completas a cada passo: 11 folhas pagas e o caixa batendo com o extrato.
+- Avançar de 3 em 4 dias dá o mesmo extrato que avançar de uma vez. Esse era o bug latente da receita semanal na v0.4.
+- O aporte vem só a partir da segunda temporada e continua correto depois de recarregar.
+- A bilheteria do jogo ao vivo entra na data do jogo.
+
 ### Próximos módulos da Fase 2
 
-1. **Finanças:** folha mensal e receitas pelo `onTick`, com extrato obrigatório (B1).
+1. ~~**Finanças**~~ ✅
 2. **Elenco e escalação:** sem refazer o XI do usuário (B6).
 3. **Evolução:** OVR coerente com os atributos (B17).
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
