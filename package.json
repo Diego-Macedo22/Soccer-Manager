@@ -5,7 +5,8 @@
   "description": "Soccer Manager — base modular (Fase 1: rede de segurança). O jogo legado v0.5 continua em game/.",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=24"
@@ -14,10 +15,12 @@
     "test": "node --test \"packages/*/test/**/*.test.ts\"",
     "test:core": "node --test \"packages/core/test/**/*.test.ts\"",
     "test:legacy": "node --test \"packages/legacy-harness/test/**/*.test.ts\"",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
     "characterize": "node packages/legacy-harness/scripts/characterize.ts",
     "legacy:start": "npm --prefix game start",
-    "extract-data": "node packages/legacy-harness/scripts/extract-data.ts"
+    "extract-data": "node packages/legacy-harness/scripts/extract-data.ts",
+    "web:dev": "npm --workspace @sm/web run dev",
+    "web:build": "npm --workspace @sm/web run build"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

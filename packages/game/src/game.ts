@@ -28,6 +28,9 @@ import {
   readSave,
   writeSave,
   capNews,
+  changeFormation,
+  swapPlayers,
+  type SwapResult,
   type CalendarEvent,
   type CalendarState,
   type CareerState,
@@ -127,6 +130,37 @@ export class Game {
   /** Registra o resultado do jogo do usuário disputado ao vivo. */
   playUserMatch(fixtureId: string, result: { home: number; away: number; winnerId?: string | null }): CalendarEvent[] {
     return recordResult(this.state.calendar, fixtureId, result, { onEvent: this.onEvent });
+  }
+
+  /**
+   * Simula o jogo do usuário em que o avanço parou (até existir o motor de
+   * partida da Fase 4, é o mesmo modelo dos outros jogos).
+   */
+  simulateUserMatch(fixtureId: string): CalendarEvent[] {
+    const cal = this.state.calendar;
+    const f = cal.fixtures[fixtureId];
+    if (!f) throw new Error(`Jogo inexistente: ${fixtureId}`);
+    const competition = cal.competitions[f.competitionId]!;
+    const r = this.play(f, { state: cal, competition, rng: createRng(this.state.seed).derive(`match:${f.id}`) });
+    return this.playUserMatch(fixtureId, r);
+  }
+
+  /** Troca dois jogadores de lugar (XI, banco ou reservas). */
+  swap(a: string, b: string): SwapResult {
+    const r = swapPlayers(this.state.lineup, this.squad(), a, b, this.date);
+    if (r.ok) this.state.lineup = r.lineup;
+    return r;
+  }
+
+  setFormation(formation: string): LineupChange[] {
+    const { lineup, changes } = changeFormation(this.state.lineup, this.squad(), formation, this.date);
+    this.state.lineup = lineup;
+    return changes;
+  }
+
+  /** Escalação automática, só quando o usuário pede. */
+  autoPick(): void {
+    this.state.lineup = autoLineup(this.squad(), this.state.lineup.formation, this.date);
   }
 
   /** Visão completa para as invariantes (calendário + finanças + escalação). */

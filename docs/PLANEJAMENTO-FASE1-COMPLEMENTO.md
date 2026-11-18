@@ -698,6 +698,57 @@ Os resultados usam o modelo rápido da v0.4 (Poisson pela força do XI). O time 
 4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
 5. **Save:** versão de schema e migrações (B7).
 
+## 7.3 Status da Fase 3 (interface web)
+
+### MVP jogável (`apps/web/`, Vite 8 + Preact 10): ✅
+
+```bash
+npm run web:dev    # http://localhost:5173
+npm run web:build  # apps/web/dist
+```
+
+**Arquitetura:**
+
+- A carreira (`@sm/game`) roda num **Web Worker** (`src/worker.ts`). A tela só envia comandos e desenha a `View` que recebe (`src/protocol.ts`), então a interface não trava (B8).
+- O save fica no **IndexedDB** (`src/idb-store.ts`, mesmo contrato do `MemoryStore`) e é gravado após cada ação: só em pontos de controle.
+- O estado de tela (aba ativa e seleção para troca) vive no Preact e nunca vai para o save (B5). Todo texto passa pelo Preact, que escapa HTML (B14).
+
+**Telas:**
+
+| Tela | Conteúdo |
+|---|---|
+| Nova carreira / continuar | Nome do técnico, clube agrupado por liga, carreira salva |
+| Painel | Próximo jogo, posição, últimos resultados, notícias, avançar 1 semana ou 1 mês. O botão **Continuar** para no dia do jogo e vira **Jogar partida** |
+| Elenco e tática | Campo com o XI, banco e reservas. Tocar em dois jogadores e "⇄ Trocar"; formação; escalar automático; tabela de jogadores |
+| Competições | Classificação com zonas e o clube do usuário destacado; jogos das copas; campeões |
+| Finanças | Caixa, folha, totais do ano por tipo, extrato e tamanho do save |
+
+**Visual:** tokens do tema Modo Carreira da v0.5 (cores, tipografia condensada, OVR em níveis especial/ouro/prata/bronze), cor do clube aplicada à interface, modo claro e escuro pelo sistema.
+
+**Layout mobile-first:** abas embaixo no celular e barra lateral a partir de 768 px; alvos de toque de pelo menos 44 px; sem rolagem horizontal em 375 px.
+
+**Verificado no navegador:**
+
+- Carreira nova com o Corintianos.
+- Avanço parando no dia do jogo, com a partida simulada (2 × 0).
+- Troca por clique entre titular e reserva funcionando (B5).
+- Folha salarial no extrato (B1).
+- Recarregar a página → "Continuar carreira salva" volta ao mesmo ponto.
+- Classificação na liga do usuário.
+- Layouts de 375 px e de desktop.
+
+**Bundles:** tela com 26 KB (10 KB gzip); worker com 631 KB, quase tudo a base de dados.
+
+**O CI agora também checa os tipos e faz o build da interface.**
+
+**Falta na Fase 3:**
+
+- Telas de mercado, olheiros e base (dependem dos módulos ainda não migrados).
+- Partida ao vivo com narração (depende do motor da Fase 4).
+- Importar save da v0.5 pela interface.
+- PWA (manifest e service worker).
+- Avisos de mudança de escalação como toast.
+
 ## 8. Decisões que dependem de você
 
 1. ~~**Legado:** v0.5.1 ou base modular~~ → **Decidido: base modular direto** (ver 2.3).

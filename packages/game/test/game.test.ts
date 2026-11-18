@@ -76,3 +76,20 @@ describe('carreira completa', () => {
     assert.deepEqual(loaded.state, g.state, 'carregar o save continua a carreira de forma idêntica');
   });
 });
+
+describe('ações da interface', () => {
+  test('simular o jogo parado, trocar jogadores, mudar formação e escalar automático', () => {
+    const g = newGame();
+    const { pausedAt } = g.advance('2026-12-31', { stopAtUserMatch: true });
+    g.simulateUserMatch(pausedAt!);
+    assert.ok(g.state.calendar.fixtures[pausedAt!]!.result);
+    const xi = g.state.lineup.xi[10]!.playerId!;
+    const bench = g.state.lineup.bench.find((id) => g.squad().find((p) => p.id === id)!.pos !== 'GOL')!;
+    assert.ok(g.swap(xi, bench).ok);
+    assert.equal(g.state.lineup.xi[10]!.playerId, bench);
+    g.setFormation('4-4-2');
+    assert.equal(g.state.lineup.formation, '4-4-2');
+    g.autoPick();
+    assert.deepEqual(checkTransition(g.snapshot(), g.snapshot()), []);
+  });
+});

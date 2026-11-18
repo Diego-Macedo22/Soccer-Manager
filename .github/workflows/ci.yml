@@ -15,9 +15,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Tipos (TypeScript strict)
+      - name: Tipos (TypeScript strict, pacotes e web)
         run: npm run typecheck
       - name: Testes (core + reproduções do legado + golden master)
         run: npm test
+      - name: Build da interface web
+        run: npm run web:build
       - name: Sintaxe do legado
         run: npm --prefix game run check

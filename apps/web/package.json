@@ -1,0 +1,22 @@
+{
+  "name": "@sm/web",
+  "version": "0.6.0-dev",
+  "private": true,
+  "description": "Interface web do Soccer Manager (Vite + Preact). A carreira roda num Web Worker.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@sm/core": "0.0.0",
+    "@sm/data": "0.0.0",
+    "@sm/game": "0.0.0",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "2.10.6",
+    "vite": "8.3.5"
+  }
+}
