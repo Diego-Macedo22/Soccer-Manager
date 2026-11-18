@@ -454,6 +454,49 @@ No modo manager, o motor roda acelerado e grava a timeline. No modo jogável, el
 - `npm run test:legacy`: reproduções do legado.
 - `npm run characterize`: regera o golden master.
 
+## 7.2 Status da Fase 2 (fundação modular)
+
+### Calendário (`packages/core/src/calendar/`): ✅
+
+**Modelo:**
+
+- O mundo é organizado em **ciclos de temporada** independentes:
+  - Brasil: temporada "2026", abertura em 10/01, com Série A, Série B e Copa Nacional.
+  - Inglaterra e Espanha: temporada "2026/27", abertura em 01/07.
+- Cada temporada de competição tem um id próprio (`brA@2026`, `pl@2026/27`) e só é arquivada depois de terminar.
+- Tudo passa por uma **fila de eventos** processada em ordem cronológica: abertura de temporada, eventos mensais e semanais, e jogos. Os jogos criados durante um avanço, como as fases da copa, entram na mesma fila.
+- O placar vem de um `ResultProvider` injetado. O calendário não depende do motor de partida.
+- Cada partida tem um fluxo de sorteio próprio (`match:<id>`).
+- Os ids dos jogos são estáveis e legíveis: `copa@2026/r1/bra03-brb07`.
+
+**Bugs resolvidos e cobertos por testes** (`packages/core/test/calendar.test.ts`):
+
+| Bug | Como foi resolvido |
+|---|---|
+| B2 | `advanceTo` recusa datas anteriores. A carreira pode começar na abertura do ciclo do clube; numa carreira inglesa, o primeiro jogo vem em até 60 dias e o Brasil já está em andamento. |
+| B3 | A temporada europeia termina com campeão e a seguinte abre sozinha, sem depender da virada brasileira. |
+| B4 | A Copa termina no mesmo salto em que suas fases são criadas (31 jogos e campeão). |
+| B11 | A abertura de uma temporada espera a anterior terminar. Se abrir atrasada, os jogos são remarcados para depois. |
+| B16 | A Copa Nacional só aceita clubes do país. |
+| B18 (calendário) | Os eventos semanais e mensais rodam na própria data. |
+
+**Propriedades verificadas:**
+
+- Saltar de uma vez ou avançar em passos aleatórios produz **o mesmo mundo**.
+- Ao longo de três temporadas, as invariantes valem a cada passo e nenhum clube joga duas vezes no mesmo dia.
+- A pausa no jogo do usuário nunca pula nem deixa jogo no passado.
+- O acesso e o rebaixamento (4 × 4) acontecem na abertura da temporada brasileira seguinte.
+
+**Ainda não incluído:** as competições continentais e a qualificação para elas, que o legado só criava para o clube do usuário.
+
+### Próximos módulos da Fase 2
+
+1. **Finanças:** folha mensal e receitas pelo `onTick`, com extrato obrigatório (B1).
+2. **Elenco e escalação:** sem refazer o XI do usuário (B6).
+3. **Evolução:** OVR coerente com os atributos (B17).
+4. **Dados:** extrair clubes e jogadores do legado para `packages/data` (B15).
+5. **Save:** versão de schema e migrações (B7).
+
 ## 8. Decisões que dependem de você
 
 1. ~~**Legado:** v0.5.1 ou base modular~~ → **Decidido: base modular direto** (ver 2.3).

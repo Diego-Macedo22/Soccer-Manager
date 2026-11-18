@@ -6,14 +6,12 @@
  */
 import { describe, test } from 'node:test';
 
-describe('calendário e temporada (core/calendar)', () => {
-  test.todo('B2: a data global nunca diminui, inclusive na virada de temporada de ligas europeias');
-  test.todo('B2: carreira na Liga Inglesa/Espanhola começa perto do primeiro jogo, sem meses parados');
-  test.todo('B3: cada competição tem temporada própria (BR jan–dez, Europa ago–mai) e termina antes de ser recriada');
-  test.todo('B4: jogos criados durante um avanço (fases de copa) são processados no mesmo avanço');
-  test.todo('B11: a virada de temporada só acontece com todas as competições da temporada encerradas');
-  test.todo('B16: cada competição define quem pode participar (Copa Nacional só com clubes do país)');
-  test.todo('B18: eventos periódicos (mercado, olheiros, base) rodam na data de cada semana, não na data final do avanço');
+// Calendário (B2, B3, B4, B11, B16 e a parte de calendário de B18): implementado
+// na Fase 2 — ver test/calendar.test.ts.
+
+describe('sistemas periódicos (mercado, olheiros, base)', () => {
+  test.todo('B18: IA de mercado, olheiros e base rodam no onTick do calendário, na data de cada semana/mês');
+  test.todo('carreira começa na data de abertura do ciclo do clube escolhido (cycleOpenDate), com o mundo pré-simulado');
 });
 
 describe('evolução (core/development)', () => {
