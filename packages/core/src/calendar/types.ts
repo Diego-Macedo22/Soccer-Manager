@@ -20,6 +20,19 @@ export interface MatchResult {
   /** Vencedor (mata-mata sempre tem; empate em liga = `null`). */
   winnerId: string | null;
   penalties?: boolean;
+  /** Gols em ordem: autor, assistência e minuto (ausente em saves antigos). */
+  goals?: GoalRecord[];
+}
+
+/** Gol de um resultado: [lado (0 = mandante, 1 = visitante), minuto, autor, assistência]. */
+export type GoalRecord = [side: 0 | 1, minute: number, scorer: string, assist: string | null];
+
+/** O que quem decide o placar devolve; `goals`, se vier, tem de bater com o placar. */
+export interface RawResult {
+  home: number;
+  away: number;
+  winnerId?: string | null;
+  goals?: GoalRecord[];
 }
 
 export interface Fixture {
@@ -119,4 +132,4 @@ export interface FixtureContext {
 }
 
 /** Quem decide o placar (motor de partida, modelo rápido ou teste). O calendário só organiza. */
-export type ResultProvider = (fixture: Fixture, ctx: FixtureContext) => { home: number; away: number; winnerId?: string | null };
+export type ResultProvider = (fixture: Fixture, ctx: FixtureContext) => RawResult;

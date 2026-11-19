@@ -16,7 +16,7 @@
 - **Nosso espaço:** a profundidade do FM com a velocidade do Brasfoot, os lances jogáveis do WSC e do FIFA, uma carreira de jogador (que o WSC não tem e os usuários pedem), a identidade brasileira e uma vantagem que nenhum deles tem: o motor determinístico, que permite compartilhar partidas e desafios por semente.
 - **Dois alertas:**
   - Caixas de recompensa pagas estão proibidas desde 17/03/2026 em jogos acessíveis a menores no Brasil (ECA Digital, art. 20).
-  - Nossa base usa nomes reais de jogadores; a EA perdeu processos no Brasil exatamente por isso.
+  - A EA perdeu processos no Brasil por usar nomes reais de jogadores sem contrato. Nossa base já usa nomes fictícios, mas parecidos com os reais (ver 5.2).
 - **Sugestão de rota:** uma fase curta de "ganchos e narrativa" antes do 3D. Depois, os lances jogáveis como primeiro passo do controle, já no campo 2D. Por último, a carreira de jogador construída em cima deles.
 
 ## 1. Os cinco jogos
@@ -278,10 +278,9 @@ Isso já cobre boa parte do núcleo do FM e do Brasfoot.
   - O sindicato de atletas de Santa Catarina venceu uma ação coletiva: R$ 5 mil por atleta e por edição, cerca de 450 atletas, uns R$ 6,5 milhões. Cabe recurso.
   - Há ainda a ação do sindicato de São Paulo (pede ao menos R$ 50 milhões) e ações individuais.
 - O nosso caso:
-  - O `packages/data/src/data/players.json` usa nomes reais.
-  - Para uso pessoal, tudo bem.
-  - Para publicar numa loja, o caminho mais seguro é sair com nomes gerados e permitir importar pacotes da comunidade. É o que PES e Brasfoot sempre fizeram.
-- Já fazemos isso com as competições ("Taça Continental", "Copa Nacional"); faltaria estender a jogadores, escudos e uniformes.
+  - A base já usa nomes fictícios gerados por regras, para clubes e jogadores ("Corintianos", "Memphis Debay"), e competições com nomes próprios ("Taça Continental", "Copa Nacional"). Ver "Nomes fictícios" no README.
+  - Isso reduz bastante o risco. Como os nomes ficam parecidos com os reais e as cores dos clubes são as de verdade, vale confirmar com um advogado antes de publicar.
+  - Pacotes da comunidade continuam sendo o caminho para quem quiser os nomes reais, como no PES e no Brasfoot.
 - Isto não é orientação jurídica: vale falar com um advogado antes de publicar.
 
 ### 5.3 Escopo e reconstruções
@@ -337,7 +336,7 @@ Esforço: P = dias, M = 1 a 2 semanas, G = fase inteira.
 
 | # | Ideia | Inspiração | Esforço |
 |---|---|---|---|
-| D1 | Editor e pacotes de dados (nomes, cores, escudos, ligas) para importar e exportar; resolve também o 5.2 | PES, Brasfoot, FM | M |
+| D1 | Editor e pacotes de dados (nomes, cores, escudos, ligas) para importar e exportar; complementa o 5.2 | PES, Brasfoot, FM | M |
 | D2 | Desafios e cenários prontos com medalhas ("do lanterna da Série B ao título", "clube endividado", "começar com −10 pontos") | FC 26, FM, YouTube do Brasfoot | P–M |
 | D3 | Desafio da semana: a mesma semente para todos e resultado compartilhável. Só um motor determinístico como o nosso garante justiça total | — (nosso) | M |
 | D4 | Partida compartilhável por código (semente mais as mudanças): o amigo assiste exatamente à mesma partida | — (nosso) | P |
@@ -350,14 +349,14 @@ Esforço: P = dias, M = 1 a 2 semanas, G = fase inteira.
 2. **Polimento de app:** A5 e A7, junto com a camada de animações e transições.
 3. **Fase 8 começando pelo C1 (no 2D)** e o C4 para testar os controles. Depois o 3D (Fases 5 a 7), que só troca o visual. Isso inverte a ordem do plano atual, em que o 3D vem antes dos controles.
 4. **C3, a carreira de jogador**, em cima dos lances jogáveis.
-5. **D1 antes de qualquer publicação** (resolve nomes). D3, D4 e D5 junto com os saves na nuvem.
+5. **D1 antes de qualquer publicação** (pacotes da comunidade para quem quiser os nomes reais). D3, D4 e D5 junto com os saves na nuvem.
 6. Os itens do grupo B entram intercalados, conforme o que os testes pedirem.
 
 ## 8. Para discutirmos
 
 1. Plataforma principal: celular primeiro (como WSC e Brasfoot) ou PC?
 2. Modelo de negócio: pago barato, grátis com anúncio só opcional, ou grátis com pacote de apoiador? Sem caixas pagas e sem energia em qualquer caso.
-3. Nomes reais: manter só na versão pessoal e lançar com base gerada mais pacotes?
+3. Nomes: os fictícios atuais bastam para publicar, ou vale afastá-los mais dos reais?
 4. Quanto controle em campo: só os lances (WSC) ou a partida inteira (FC e PES)?
 5. Carreira de jogador como modo separado ou dentro da mesma carreira?
 6. Topa a Fase 4.5 antes do 3D, e os lances jogáveis já no 2D?

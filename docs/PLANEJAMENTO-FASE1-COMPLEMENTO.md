@@ -773,6 +773,19 @@ Bugs de regulamento da v0.5 corrigidos: a Taça Continental era um pontos corrid
 
 **Falta:** artilharia e notas acumuladas por competição, lesões no jogo, troca de formação na tela ao vivo.
 
+## 7.5 Status da Fase 4.5 (ganchos e narrativa)
+
+Base: docs/PESQUISA-JOGOS-REFERENCIA.md, seção 7.
+
+- ✅ Autor, assistência e minuto em todo gol (`MatchResult.goals`), inclusive no modelo rápido, sem mudar o placar nem a calibração.
+- ✅ Artilharia por competição, derivada dos resultados; prêmios da liga (craque, artilheiro, garçom, revelação) em notícia.
+- ✅ Próximos acontecimentos no painel e notícia de cada resultado do usuário.
+- ✅ Rodada ao vivo: `Game.dayResults` simula o resto do dia numa cópia, pelo mesmo caminho do avanço real; `finishUserMatch` disputa o resto do dia na hora. Teste garante que a prévia é idêntica ao resultado.
+- ✅ Classificação ao vivo e gols dos outros jogos na narração.
+- ✅ Resumo pós-jogo: xG, mapa de chutes, xG acumulado, notas e dicas do auxiliar.
+- ✅ Lesões em campo com fluxo de sorteio próprio (partidas sem lesão continuam idênticas) e troca de formação ao vivo, também no visualizador.
+- Fica para depois: seleção da rodada, coletivas e conversas com jogadores.
+
 ## 8. Decisões que dependem de você
 
 1. ~~**Legado:** v0.5.1 ou base modular~~ → **Decidido: base modular direto** (ver 2.3).

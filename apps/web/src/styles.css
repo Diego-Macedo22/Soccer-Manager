@@ -182,3 +182,24 @@ button.ghost { background: transparent; }
 .feed p.goal { font-weight: 700; color: var(--accent); animation: flash .8s ease 2; }
 @keyframes flash { 50% { opacity: .35; } }
 .stats td { padding: 5px 6px; }
+
+/* Fase 4.5: próximos acontecimentos, rodada ao vivo e resumo da partida. */
+.block { display: block; }
+.upcoming { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.upcoming li { display: grid; grid-template-columns: 66px 1fr; gap: 10px; align-items: start; line-height: 1.35; }
+.upcoming .when { font-size: 12px; font-weight: 700; text-align: center; padding: 3px 6px; border-radius: 6px; background: var(--panel3); color: var(--muted); }
+.upcoming .when.soon { background: color-mix(in srgb, var(--club) 28%, transparent); color: var(--text); }
+.feed p.radio { color: var(--muted); }
+.feed p.warn { color: var(--warn); }
+.day-game { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; border-radius: 6px; }
+.day-game span:first-child { text-align: right; }
+.day-game.flash { animation: goal-flash 1.4s ease-out; }
+@keyframes goal-flash { from { background: color-mix(in srgb, var(--accent) 40%, transparent); } to { background: transparent; } }
+.live-table { max-height: 320px; overflow-y: auto; }
+.up { color: var(--accent); font-size: 10px; }
+.down { color: var(--danger); font-size: 10px; }
+.post-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .post-grid { grid-template-columns: 3fr 2fr; } }
+.shotmap { width: 100%; border-radius: 8px; display: block; }
+.momentum { width: 100%; height: auto; display: block; background: var(--panel2); border-radius: 8px; margin-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .day-game.flash { animation: none; } }

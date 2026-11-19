@@ -49,12 +49,16 @@ O diagnóstico, as decisões e o andamento de cada fase estão em [docs/PLANEJAM
 - **Motor de partida** (`packages/core/src/match/`): cadeias de posse em campo contínuo (105 × 68), com o portador escolhendo passe, bola em profundidade, lançamento, drible, cruzamento ou chute. Os lances se resolvem em duelos de atributos (passe × marcação, drible × desarme, finalização × goleiro), com xG por distância e ângulo, faltas, cartões, pênaltis e escanteios. Energia, moral, mentalidade (5 níveis), pressão, linha e ritmo entram no cálculo. É determinístico: mesma semente, mesma partida
 - Calibrado com 1000 jogos (`npm run calibrate`) dentro de faixas de ligas reais: cerca de 2,5 gols, 44% de vitórias do mandante, 24% de empates, 23 chutes, 9 no alvo e 11% de aproveitamento por jogo. Os jogos da IA usam um modelo rápido (Poisson) calibrado com o motor
 - Placar, estatísticas e notas são derivados dos eventos da partida (corrige B9)
+- Lesões em campo (cerca de 0,3 por jogo, a maioria leve): troca automática pelo reserva da posição; sem trocas disponíveis, o time fica com um a menos. O lesionado sai da escalação dos próximos jogos
+- Todo gol tem autor, assistência e minuto, também nos jogos da IA (o modelo rápido sorteia pelo peso da posição e pela finalização ou passe, sem mudar o placar). Daí saem a artilharia e os prêmios de cada liga: craque, artilheiro, garçom e revelação
 
 **Interface web (`apps/web`, Vite + Preact)**
 - Nova carreira e "continuar carreira salva"
-- Painel com próximo jogo, posição, últimos resultados e notícias; avança 1 semana ou 1 mês e para no dia do jogo
-- **Partida ao vivo em 2D**: campo com os 22 jogadores, relógio acelerado (1×, 3× ou melhores momentos, que desacelera nos lances importantes), narração, estatísticas, pausa automática no intervalo, até 5 substituições em 3 janelas (o intervalo não conta, regra IFAB) e mudança de mentalidade durante o jogo; ou "Simular resultado" com o mesmo motor
-- Elenco e tática com campo, banco e reservas; Mercado com filtros, proposta ajustável, contratos do elenco e olheiros; Base com relatórios e promoção; Diretoria com objetivos, confianças, nota e propostas de emprego; Competições com classificação e zonas; Finanças com caixa, folha e extrato
+- Painel com próximo jogo, posição, últimos resultados, **próximos acontecimentos** com contagem regressiva (jogos, janela, peneira, olheiros, propostas, contratos e fim da liga) e notícias, incluindo o resultado de cada jogo com os autores dos gols; avança 1 semana ou 1 mês e para no dia do jogo
+- **Partida ao vivo em 2D**: campo com os 22 jogadores, relógio acelerado (1×, 3× ou melhores momentos, que desacelera nos lances importantes), narração, estatísticas, pausa automática no intervalo, até 5 substituições em 3 janelas (o intervalo não conta, regra IFAB) e troca de mentalidade e de formação durante o jogo; ou "Simular resultado" com o mesmo motor
+- **Rodada ao vivo**: os placares dos outros jogos da competição mudam durante a sua partida, os gols entram na narração como num plantão de rádio e a classificação se mexe a cada gol. Os outros jogos já estão decididos no Worker, então o que aparece na tela é exatamente o que fica no calendário
+- **Resumo pós-jogo**: xG, mapa de chutes, gráfico de pressão (xG acumulado), craque do jogo, melhores notas do seu time e até três dicas do auxiliar técnico
+- Elenco e tática com campo, banco e reservas; Mercado com filtros, proposta ajustável, contratos do elenco e olheiros; Base com relatórios e promoção; Diretoria com objetivos, confianças, nota e propostas de emprego; Competições com classificação, zonas e artilharia (gols e assistências); Finanças com caixa, folha e extrato
 - A carreira roda num **Web Worker**, então a tela não trava
 - Save no **IndexedDB**, gravado após cada ação
 - Layout mobile-first: abas embaixo no celular e barra lateral a partir de 768 px; modo claro e escuro pelo sistema
@@ -187,8 +191,9 @@ docs/
 
 ## Próximos passos
 
-1. **Fase 3, restante:** importação de save da v0.5 pela interface e PWA.
-2. **Fase 4, restante:** artilharia e notas por competição, lesões durante o jogo e troca de formação ao vivo.
+O jogo terá duas edições com o mesmo motor e o mesmo save: uma **web lite** (carreira completa, partida 2D, roda em qualquer navegador) e um **app** mais polido para quem baixar (3D, lances jogáveis, carreira de jogador). A pesquisa que embasa a ordem abaixo está em [docs/PESQUISA-JOGOS-REFERENCIA.md](docs/PESQUISA-JOGOS-REFERENCIA.md).
+
+1. **Web lite pública:** PWA (instalável e offline), exportar e importar save (inclui o da v0.5) e pacotes de dados da comunidade.
+2. **App v1 (Capacitor):** lances jogáveis no campo 2D com toque (início da Fase 8) e cerimônias animadas (peneira, reforço, sorteio, taça).
 3. **Fases 5 a 7:** partidas em 3D com **Three.js**, usando modelos e animações do Blender + Mixamo, com câmera de transmissão e replays.
-4. **Fase 8:** controles por teclado, gamepad e toque.
-5. **Depois:** app para celular (Capacitor), modo jogável controlando o time, Carreira de Jogador controlando o próprio atleta e saves na nuvem.
+4. **Depois:** Carreira de Jogador controlando o próprio atleta, seleção da rodada, coletivas e saves na nuvem.

@@ -4,12 +4,12 @@
  * Responde cada comando com uma `View` pronta para desenhar e grava o save no
  * IndexedDB depois de cada ação (pontos de controle, nunca a cada minuto).
  */
-import { SCOUT_LIMIT, SCOUT_REGIONS, objectivesScore, scoutHireCost, type ScoutRegion, ACADEMY_LIMIT, ACADEMY_MAX_LEVEL, FORMATIONS, academyUpgradeCost, encodeSave, sortTable, totalsByKind, type Fixture } from '@sm/core';
+import { SCOUT_LIMIT, SCOUT_REGIONS, objectivesScore, scoutHireCost, type ScoutRegion, ACADEMY_LIMIT, ACADEMY_MAX_LEVEL, FORMATIONS, academyUpgradeCost, encodeSave, sortTable, totalsByKind, type Fixture, applyToTable, emptyTable, YOUTH_INTAKE_DAYS, type MatchChange, type StandingRow } from '@sm/core';
 import type { MarketResult } from '@sm/game';
 import { loadDatabase, type Database } from '@sm/data';
 import { Game } from '@sm/game';
 import { IdbStore } from './idb-store.ts';
-import type { LiveMatchView, BoardView, ClubRef, Command, FixtureView, MarketView, Reply, View } from './protocol.ts';
+import type { LiveMatchView, LiveRoundView, BoardView, ClubRef, Command, FixtureView, MarketView, Reply, UpcomingItem, View } from './protocol.ts';
 
 const SLOT = 'carreira-1';
 const db: Database = loadDatabase();
@@ -18,7 +18,7 @@ const clubs = new Map(db.clubs.map((c) => [c.id, c]));
 const LEAGUES: Record<string, string> = { A: 'Liga Nacional Série A', B: 'Liga Nacional Série B', PL: 'Liga Inglesa', LL: 'Liga Espanhola' };
 let game: Game | null = null;
 /** Partida ao vivo em andamento (mudanças feitas pelo usuário). */
-let live: { fixtureId: string; changes: import('@sm/core').MatchChange[] } | null = null;
+let live: { fixtureId: string; changes: MatchChange[]; round: LiveRoundView } | null = null;
 
 const ref = (id: string): ClubRef => ({ id, name: clubs.get(id)?.name ?? id, abbr: clubs.get(id)?.abbr ?? id.slice(0, 3).toUpperCase() });
 
@@ -95,8 +95,74 @@ function liveView(g: Game): LiveMatchView {
   return {
     fixtureId: f.id, competition: g.state.calendar.competitions[f.competitionId]?.name ?? '', round: f.roundName,
     home: club(f.home), away: club(f.away), userSide: f.home === g.state.userClubId ? 'home' : 'away',
-    input, timeline, names, changes: live!.changes,
+    input, timeline, names, changes: live!.changes, day: live!.round,
   };
+}
+
+/** Rodada ao vivo: os outros jogos da competição no dia e a tabela de antes da rodada. */
+function roundView(g: Game, fixtureId: string): LiveRoundView {
+  const cal = g.state.calendar;
+  const f = cal.fixtures[fixtureId]!;
+  const comp = cal.competitions[f.competitionId]!;
+  const games = g.dayResults(fixtureId).map((x) => ({
+    home: ref(x.home),
+    away: ref(x.away),
+    final: [x.result!.home, x.result!.away] as [number, number],
+    goals: (x.result!.goals ?? []).map(([s, m]) => [s, m] as [0 | 1, number]),
+  }));
+  let table: StandingRow[] | null = null;
+  if (comp.format === 'league') {
+    table = emptyTable(comp.participants);
+    for (const id of comp.fixtureIds) {
+      const x = cal.fixtures[id];
+      if (x?.result && x.date < f.date) applyToTable(table, x.home, x.away, x.result.home, x.result.away);
+    }
+  }
+  const refs: Record<string, ClubRef> = {};
+  for (const id of comp.participants) refs[id] = ref(id);
+  return { games, table, clubs: refs };
+}
+
+const REGION_NAME: Record<string, string> = { BR: 'Brasil', ENG: 'Inglaterra', ESP: 'Espanha', SUL: 'América do Sul', LIVRES: 'agentes livres' };
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+function firstOfMonthFrom(d: string): string {
+  if (d.endsWith('-01')) return d;
+  const x = new Date(`${d}T00:00:00Z`);
+  return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+}
+
+/** O que vem por aí: jogos, janela, peneira, olheiros, propostas, contratos e fim da liga. */
+function upcomingView(g: Game): UpcomingItem[] {
+  const s = g.state;
+  const cal = s.calendar;
+  const today = cal.date;
+  const user = s.userClubId;
+  const items: Omit<UpcomingItem, 'days'>[] = [];
+  const mine = Object.values(cal.fixtures).filter((f) => !f.result && (f.home === user || f.away === user)).sort((a, b) => a.date.localeCompare(b.date));
+  for (const f of mine.slice(0, 3)) {
+    const decisive = f.roundName.startsWith('Final') || f.leg === 2;
+    items.push({ date: f.date, title: `${decisive ? '🏆' : '⚽'} ${ref(f.home).name} x ${ref(f.away).name}`, detail: `${cal.competitions[f.competitionId]?.name ?? ''} • ${f.roundName}` });
+  }
+  const [y, mo] = today.split('-').map(Number) as [number, number];
+  if (g.windowOpen()) items.push({ date: new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10), title: '🔁 Fecha a janela de transferências', detail: 'Último dia para comprar e pegar emprestado.' });
+  else items.push({ date: mo < 7 ? `${y}-07-01` : `${y + 1}-01-01`, title: '🔁 Abre a janela de transferências', detail: '' });
+  const academy = s.market.academy;
+  items.push({ date: firstOfMonthFrom(academy.lastIntake ? addDays(academy.lastIntake, YOUTH_INTAKE_DAYS) : today), title: '🌱 Peneira da base', detail: `Base nível ${academy.level}` });
+  for (const sc of s.board.scouts) if (sc.mission) items.push({ date: sc.mission.end, title: `🔭 Relatório de ${sc.name}`, detail: `Missão: ${REGION_NAME[sc.mission.region] ?? sc.mission.region}` });
+  for (const o of [...s.market.offers].sort((a, b) => a.expires.localeCompare(b.expires)).slice(0, 2)) {
+    items.push({ date: o.expires, title: `📨 Vence a proposta por ${g.playerName(o.playerId)}`, detail: ref(o.fromClubId).name });
+  }
+  const ending = g.squad().filter((p) => s.players[p.id]?.contract === 1);
+  const end = ending.length ? g.contractEnd(ending[0]!.id) : null;
+  if (end) items.push({ date: end, title: `✍️ ${ending.length === 1 ? '1 contrato termina' : `${ending.length} contratos terminam`}`, detail: 'Renove a tempo ou perca o jogador de graça.' });
+  const league = Object.values(cal.competitions).find((c) => c.format === 'league' && c.status === 'running' && c.participants.includes(user));
+  const last = league?.fixtureIds.map((id) => cal.fixtures[id]?.date ?? '').sort().pop();
+  if (league && last) items.push({ date: last, title: `📋 Última rodada da ${league.name}`, detail: 'Depois dela, a avaliação da diretoria.' });
+  return items
+    .filter((i) => i.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 7)
+    .map((i) => ({ ...i, days: daysBetween(today, i.date) }));
 }
 
 function buildView(g: Game): View {
@@ -123,6 +189,7 @@ function buildView(g: Game): View {
     standing: league ? { competition: league.name, pos: leagueTable.findIndex((r) => r.clubId === user) + 1, points: leagueTable.find((r) => r.clubId === user)?.points ?? 0 } : null,
     results: userFixtures.filter((f) => f.result).slice(-5).reverse().map((f) => fixtureView(g, f)),
     news: s.news.slice(-20).reverse(),
+    upcoming: upcomingView(g),
     squad: g.squad().map((p) => {
       const d = s.players[p.id]!;
       return { id: p.id, name: p.name, pos: p.pos, positions: p.positions, age: d.age, ovr: d.ovr, pot: d.pot, fitness: Math.round(d.fitness), morale: Math.round(d.morale), injuredUntil: d.injuredUntil && d.injuredUntil >= cal.date ? d.injuredUntil : null, wage: d.wage, contract: d.contract, apps: d.appsThisSeason };
@@ -138,6 +205,7 @@ function buildView(g: Game): View {
       table: c.format === 'league' ? rows(sortTable(c.table), user) : [],
       groups: Object.entries(c.groups ?? {}).map(([name, members]) => ({ name, table: rows(sortTable(c.table.filter((r) => members.includes(r.clubId))), user) })),
       userFixtures: c.fixtureIds.map((id) => cal.fixtures[id]!).filter((f) => f && (f.home === user || f.away === user || (c.format !== 'league' && !f.group))).slice(-40).map((f) => fixtureView(g, f)),
+      scorers: g.competitionStats(c.id).slice(0, 10).map((x) => ({ name: g.playerName(x.playerId), club: ref(x.clubId), goals: x.goals, assists: x.assists })),
     })),
     finance: {
       balance: s.finance.balance,
@@ -189,7 +257,7 @@ async function handle(cmd: Command): Promise<Reply> {
   if (cmd.type === 'matchStart') {
     const next = g.nextUserFixture();
     if (!next || next.date !== g.date) return { type: 'error', message: 'Não há jogo hoje.' };
-    live = { fixtureId: next.id, changes: [] };
+    live = { fixtureId: next.id, changes: [], round: roundView(g, next.id) };
     return { type: 'match', match: liveView(g) };
   }
   if (cmd.type === 'matchChange') {

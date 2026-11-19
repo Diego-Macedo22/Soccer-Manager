@@ -13,11 +13,13 @@ import { createRng, type Rng } from '../rng.ts';
 import { FORMATIONS } from '../squad/formations.ts';
 import type { PlayerAttributes, Position } from '../squad/positions.ts';
 
-export const MATCH_VERSION = 1;
+export const MATCH_VERSION = 2;
 export const PITCH = { w: 105, h: 68 } as const;
 export const MAX_SUBS = 5;
 /** Janelas de substituição fora do intervalo (regra IFAB desde 2022). */
 export const MAX_SUB_WINDOWS = 3;
+/** Chance de lesão por minuto, por time (cerca de 0,14 por time e por jogo; as leves são a maioria). */
+export const INJURY_PER_MINUTE = 0.0015;
 
 /** −2 ultradefensivo … +2 ultraofensivo (5 níveis, como na v0.5). */
 export type Mentality = -2 | -1 | 0 | 1 | 2;
@@ -74,7 +76,7 @@ export type Side = 'home' | 'away';
 
 export type EventType =
   | 'kickoff' | 'pass' | 'through' | 'cross' | 'long' | 'dribble' | 'tackle' | 'intercept' | 'shot' | 'save' | 'miss' | 'post'
-  | 'goal' | 'foul' | 'yellow' | 'red' | 'corner' | 'penalty' | 'sub' | 'tactics' | 'halftime' | 'fulltime';
+  | 'goal' | 'foul' | 'yellow' | 'red' | 'corner' | 'penalty' | 'sub' | 'tactics' | 'halftime' | 'fulltime' | 'injury';
 
 export interface MatchEvent {
   /** Segundos de jogo corrido (o 2º tempo começa em 45 × 60). */
@@ -83,7 +85,7 @@ export interface MatchEvent {
   side: Side;
   /** Autor (ou quem sofreu, no caso de falta). */
   player?: string;
-  /** Segundo jogador: recebedor do passe, assistente do gol, quem desarmou, quem entrou. */
+  /** Segundo jogador: recebedor do passe, assistente do gol, quem desarmou, quem saiu; na troca de formação, a nova formação. */
   other?: string;
   /** Posição da bola ao fim da ação. */
   x: number;
@@ -176,6 +178,8 @@ export function anchor(formation: string, slot: number, side: Side, ballX: numbe
 /** Roda a partida inteira (com as mudanças já conhecidas). */
 export function simulateMatch(input: MatchInput, changes: readonly MatchChange[] = []): MatchTimeline {
   const rng: Rng = createRng(input.seed).derive('match');
+  // Lesões têm fluxo próprio: uma partida sem lesão é idêntica à de antes delas.
+  const injuryRng: Rng = createRng(input.seed).derive('injury');
   const live: Record<Side, Live> = {
     home: start(input.home),
     away: start(input.away),
@@ -206,7 +210,7 @@ export function simulateMatch(input: MatchInput, changes: readonly MatchChange[]
         push({ t, type: 'tactics', side: c.side });
       } else if (c.type === 'formation' && FORMATIONS[c.formation]) {
         L.formation = c.formation;
-        push({ t, type: 'tactics', side: c.side });
+        push({ t, type: 'tactics', side: c.side, other: c.formation });
       } else if (c.type === 'sub') doSub(L, c.side, c.out, c.in, c.minute, t);
     }
   };
@@ -241,6 +245,19 @@ export function simulateMatch(input: MatchInput, changes: readonly MatchChange[]
     possessionTime[side] += dt;
     for (const s of ['home', 'away'] as const) {
       for (const p of live[s].onPitch) p.energy = clamp(p.energy - dt / 60 * (0.28 + live[s].tactics.pressing / 400) * (1.2 - attrOf(p, 'fis') / 250), 20, 100);
+    }
+    for (const s of ['home', 'away'] as const) {
+      if (!injuryRng.chance(INJURY_PER_MINUTE * dt / 60)) continue;
+      const T = live[s];
+      // Goleiro e quem está com a bola ficam de fora (o lance segue).
+      const pool = T.onPitch.filter((p) => p.pos !== 'GOL' && p.id !== carrier.id && !p.id.startsWith('vazio-'));
+      if (!pool.length) continue;
+      const victim = injuryRng.pick(pool);
+      push({ t, type: 'injury', side: s, player: victim.id, weight: 0.5 });
+      // Troca automática pelo melhor reserva da posição; sem trocas disponíveis, o time fica com um a menos.
+      const repl = T.bench.filter((b) => b.pos !== 'GOL').sort((a, b) => Number(b.pos === victim.pos) - Number(a.pos === victim.pos) || b.ovr - a.ovr)[0];
+      if (repl) doSub(T, s, victim.id, repl.id, minute, t);
+      T.onPitch = T.onPitch.filter((p) => p.id !== victim.id);
     }
 
     if (half === 1 && t >= secondStart) {
@@ -367,9 +384,10 @@ export function simulateMatch(input: MatchInput, changes: readonly MatchChange[]
     const goalX = side === 'home' ? PITCH.w : 0;
     if (onTarget && rng.chance(penalty ? q : q / clamp(0.18 + attr(shooter, 'fin') / 500 + xg * 0.5, 0.2, 0.75))) {
       score[side]++;
-      ball = { x: goalX, y: PITCH.h / 2 + rng.float(-3, 3) };
+      // O chute fica onde foi batido (mapa de chutes); a bola leva um segundo até a rede.
       push({ t, type: 'shot', side, player: shooter.id, xg });
-      push({ t, type: 'goal', side, player: shooter.id, other: assist, xg, weight: 1 });
+      ball = { x: goalX, y: PITCH.h / 2 + rng.float(-3, 3) };
+      push({ t: t + 1, type: 'goal', side, player: shooter.id, other: assist, xg, weight: 1 });
       // Saída de bola do adversário no meio-campo.
       side = other(side);
       ball = { x: PITCH.w / 2, y: PITCH.h / 2 };
@@ -589,9 +607,14 @@ export function positionsAt(input: MatchInput, tl: MatchTimeline, t: number): { 
   const players: { id: string; side: Side; x: number; y: number }[] = [];
   for (const s of ['home', 'away'] as const) {
     const ids = lineupAt(input, tl, s, t);
+    let formation = input[s].formation;
+    for (const e of ev) {
+      if (e.t > t) break;
+      if (e.side === s && e.type === 'tactics' && e.other && FORMATIONS[e.other]) formation = e.other;
+    }
     ids.forEach((id, slot) => {
       if (!id) return;
-      const p = anchor(input[s].formation, slot, s, ball.x, ball.y, attacking === s, input[s].tactics.line);
+      const p = anchor(formation, slot, s, ball.x, ball.y, attacking === s, input[s].tactics.line);
       players.push({ id, side: s, ...p });
     });
   }
@@ -604,7 +627,7 @@ export function positionsAt(input: MatchInput, tl: MatchTimeline, t: number): { 
   return { ball, players };
 }
 
-/** Quem ocupa cada slot no instante `t` (considera substituições e expulsões). */
+/** Quem ocupa cada slot no instante `t` (considera substituições, expulsões e lesões sem troca). */
 function lineupAt(input: MatchInput, tl: MatchTimeline, s: Side, t: number): (string | null)[] {
   const ids: (string | null)[] = input[s].xi.map((p) => p.id);
   for (const e of tl.events) {
@@ -613,7 +636,7 @@ function lineupAt(input: MatchInput, tl: MatchTimeline, s: Side, t: number): (st
     if (e.type === 'sub') {
       const i = ids.indexOf(e.other!);
       if (i >= 0) ids[i] = e.player!;
-    } else if (e.type === 'red') {
+    } else if (e.type === 'red' || (e.type === 'injury' && !tl.events.some((x) => x.t === e.t && x.type === 'sub' && x.other === e.player))) {
       const i = ids.indexOf(e.player!);
       if (i >= 0) ids[i] = null;
     }

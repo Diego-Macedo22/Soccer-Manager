@@ -36,6 +36,7 @@ import type {
   Club,
   CompetitionInstance,
   Fixture,
+  RawResult,
   ResultProvider,
   TickKind,
 } from './types.ts';
@@ -168,7 +169,7 @@ export function advanceTo(state: CalendarState, target: IsoDate, opts: AdvanceOp
 export function recordResult(
   state: CalendarState,
   fixtureId: string,
-  result: { home: number; away: number; winnerId?: string | null },
+  result: RawResult,
   opts: { cycles?: readonly CycleDef[]; onEvent?: EventListener } = {},
 ): CalendarEvent[] {
   const cycles = opts.cycles ?? DEFAULT_CYCLES;
@@ -227,7 +228,7 @@ function handle(state: CalendarState, e: AgendaEntry, opts: AdvanceOptions, cycl
 function applyResult(
   state: CalendarState,
   f: Fixture,
-  raw: { home: number; away: number; winnerId?: string | null },
+  raw: RawResult,
   cycles: readonly CycleDef[],
   events: EventSink,
 ): void {
@@ -235,6 +236,9 @@ function applyResult(
   if (!comp) throw new Error(`Competição inexistente: ${f.competitionId}`);
   if (!Number.isInteger(raw.home) || !Number.isInteger(raw.away) || raw.home < 0 || raw.away < 0) {
     throw new RangeError(`Placar inválido em ${f.id}: ${raw.home} x ${raw.away}`);
+  }
+  if (raw.goals && (raw.goals.filter((g) => g[0] === 0).length !== raw.home || raw.goals.filter((g) => g[0] === 1).length !== raw.away)) {
+    throw new RangeError(`Gols não batem com o placar em ${f.id}`);
   }
   let winnerId: string | null = raw.home > raw.away ? f.home : raw.away > raw.home ? f.away : null;
   let penalties = false;
@@ -256,7 +260,8 @@ function applyResult(
           ? f.home
           : f.away;
   }
-  f.result = penalties ? { home: raw.home, away: raw.away, winnerId, penalties } : { home: raw.home, away: raw.away, winnerId };
+  const goals = raw.goals?.length ? { goals: raw.goals } : {};
+  f.result = penalties ? { home: raw.home, away: raw.away, winnerId, penalties, ...goals } : { home: raw.home, away: raw.away, winnerId, ...goals };
   events.push({ type: 'fixture-played', date: state.date, fixtureId: f.id });
 
   if (comp.format === 'league') {

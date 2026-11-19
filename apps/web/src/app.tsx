@@ -232,10 +232,28 @@ function Dashboard({ view, busy, send }: { view: View; busy: boolean; send: (c: 
           <p class="tiny muted">O avanço sempre para no dia do seu próximo jogo.</p>
         </section>
         <section class="card">
+          <h3>Próximos acontecimentos</h3>
+          {view.upcoming.length ? (
+            <ul class="upcoming">
+              {view.upcoming.map((u, i) => (
+                <li key={i}>
+                  <span class={`when ${u.days <= 1 ? 'soon' : ''}`}>{u.days === 0 ? 'Hoje' : u.days === 1 ? 'Amanhã' : `${u.days} dias`}</span>
+                  <span>
+                    <b>{u.title}</b>
+                    {u.detail && <span class="tiny muted block">{u.detail}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="muted">Nada marcado por enquanto.</p>
+          )}
+        </section>
+        <section class="card">
           <h3>Últimos resultados</h3>
           {view.results.length ? view.results.map((f) => <FixtureLine key={f.id} f={f} />) : <p class="muted">A temporada ainda não começou.</p>}
         </section>
-        <section class="card span2">
+        <section class="card">
           <h3>Notícias</h3>
           <ul class="news">
             {view.news.map((n, i) => (
@@ -456,6 +474,35 @@ function Competitions({ view }: { view: View }) {
               {c.userFixtures.map((f) => (
                 <FixtureLine key={f.id} f={f} />
               ))}
+            </section>
+          )}
+          {c.scorers.length > 0 && (
+            <section class="card span2">
+              <h3>Artilharia</h3>
+              <table class="table standings">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Jogador</th>
+                    <th>Clube</th>
+                    <th title="Gols">G</th>
+                    <th title="Assistências">A</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.scorers.map((p, i) => (
+                    <tr key={i}>
+                      <td>{i + 1}</td>
+                      <td>{p.name}</td>
+                      <td class="muted">{p.club.abbr}</td>
+                      <td>
+                        <b>{p.goals}</b>
+                      </td>
+                      <td>{p.assists}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           )}
         </div>

@@ -65,6 +65,7 @@ import {
   type ScoutRegion,
   DEFAULT_TACTICS,
   simulateMatch,
+  clockMinute,
   type MatchChange,
   type MatchInput,
   type MatchPlayer,
@@ -78,6 +79,8 @@ import {
   type CalendarState,
   type CareerState,
   type Fixture,
+  type GoalRecord,
+  type RawResult,
   type InvariantSnapshot,
   type LineupChange,
   type ResultProvider,
@@ -98,7 +101,51 @@ const INJURIES: [string, number, number][] = [
   ['Entorse no joelho', 25, 45], ['Lesão no posterior da coxa', 21, 50], ['Fratura no pé', 45, 80], ['Ruptura do LCA', 160, 210],
 ];
 
+/** Peso das lesões sofridas em campo, na ordem de INJURIES (as leves são a maioria). */
+const MATCH_INJURY_WEIGHTS = [40, 15, 15, 10, 8, 8, 3, 1];
+/** Quem marca e quem dá o passe no modelo rápido, por posição (multiplicado por finalização e passe). */
+const SCORE_WEIGHT: Record<Position, number> = { GOL: 0.003, ZAG: 0.12, LD: 0.08, LE: 0.08, VOL: 0.15, MC: 0.3, MLE: 0.45, MLD: 0.45, MAT: 0.55, SA: 1.1, PE: 0.6, PD: 0.6, ATA: 1.6 };
+const ASSIST_WEIGHT: Record<Position, number> = { GOL: 0.02, ZAG: 0.08, LD: 0.4, LE: 0.4, VOL: 0.3, MC: 0.55, MLE: 0.7, MLD: 0.7, MAT: 1, SA: 0.8, PE: 0.9, PD: 0.9, ATA: 0.55 };
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+type Rng = ReturnType<typeof createRng>;
+type Starter = { p: SquadPlayer; pos: Position };
+
+function pickWeighted<T>(items: readonly T[], weight: (x: T) => number, rng: Rng): T {
+  let r = rng.next() * items.reduce((t, x) => t + weight(x), 0);
+  for (const x of items) {
+    r -= weight(x);
+    if (r <= 0) return x;
+  }
+  return items[items.length - 1]!;
+}
+
+/** Autores, assistências e minutos dos gols do modelo rápido. */
+function quickGoals(xis: readonly (readonly Starter[])[], score: readonly number[], rng: Rng): GoalRecord[] {
+  const goals: GoalRecord[] = [];
+  for (const side of [0, 1] as const) {
+    const xi = xis[side]!;
+    for (let i = 0; i < score[side]!; i++) {
+      if (!xi.length) {
+        goals.push([side, rng.int(1, 90), '', null]);
+        continue;
+      }
+      const scorer = pickWeighted(xi, (x) => SCORE_WEIGHT[x.pos] * (x.p.attrs.fin / 60) ** 2, rng);
+      const mates = xi.filter((x) => x !== scorer);
+      const assist = mates.length && rng.chance(0.72) ? pickWeighted(mates, (x) => ASSIST_WEIGHT[x.pos] * (x.p.attrs.pas / 60) ** 1.5, rng) : null;
+      goals.push([side, rng.int(1, 90), scorer.p.id, assist ? assist.p.id : null]);
+    }
+  }
+  return goals.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+}
+
+/** Gols e assistências de um jogador numa competição. */
+export interface PlayerStat {
+  playerId: string;
+  clubId: string;
+  goals: number;
+  assists: number;
+}
 
 function addDays(date: IsoDate, n: number): IsoDate {
   const d = new Date(`${date}T00:00:00Z`);
@@ -190,7 +237,7 @@ export class Game {
   }
 
   /** Registra o resultado do jogo do usuário disputado ao vivo. */
-  playUserMatch(fixtureId: string, result: { home: number; away: number; winnerId?: string | null }): CalendarEvent[] {
+  playUserMatch(fixtureId: string, result: RawResult): CalendarEvent[] {
     return recordResult(this.state.calendar, fixtureId, result, { onEvent: this.onEvent });
   }
 
@@ -255,12 +302,56 @@ export class Game {
       if (p) p.morale = clamp(p.morale + (r - 6.5) * 2, 30, 99);
     }
     this.changed();
-    return { timeline, events: this.playUserMatch(fixtureId, timeline.score) };
+    this.matchInjuries(fixtureId, timeline);
+    const goals = timeline.events
+      .filter((e) => e.type === 'goal')
+      .map((e): GoalRecord => [e.side === 'home' ? 0 : 1, clockMinute(e.t, timeline.secondHalfStart), e.player ?? '', e.other ?? null]);
+    const events = this.playUserMatch(fixtureId, { ...timeline.score, goals });
+    // O resto do dia (os outros jogos da rodada) sai na hora: é o que a rodada ao vivo mostrou.
+    return { timeline, events: [...events, ...this.advance(this.date, { stopAtUserMatch: true }).events] };
   }
 
   /** Simula o jogo do usuário em que o avanço parou, com o motor completo. */
   simulateUserMatch(fixtureId: string): CalendarEvent[] {
     return this.finishUserMatch(fixtureId).events;
+  }
+
+  /** Artilharia e assistências de uma competição, derivadas dos resultados (nada guardado à parte). */
+  competitionStats(competitionId: string): PlayerStat[] {
+    const cal = this.state.calendar;
+    const by = new Map<string, PlayerStat>();
+    const add = (id: string | null, clubId: string, key: 'goals' | 'assists') => {
+      if (!id || !this.state.players[id]) return;
+      let s = by.get(id);
+      if (!s) by.set(id, (s = { playerId: id, clubId, goals: 0, assists: 0 }));
+      s.clubId = clubId;
+      s[key]++;
+    };
+    for (const id of cal.competitions[competitionId]?.fixtureIds ?? []) {
+      const f = cal.fixtures[id];
+      for (const [side, , scorer, assist] of f?.result?.goals ?? []) {
+        const club = side === 0 ? f!.home : f!.away;
+        add(scorer, club, 'goals');
+        add(assist, club, 'assists');
+      }
+    }
+    return [...by.values()].sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.playerId.localeCompare(b.playerId));
+  }
+
+  /**
+   * Os outros jogos da competição no dia do jogo do usuário, já decididos (para
+   * a rodada ao vivo). O resto do dia roda numa cópia, pelo mesmo caminho do
+   * avanço real; como o placar do usuário não influi nos outros jogos, a tela
+   * mostra exatamente o que vai acontecer.
+   */
+  dayResults(fixtureId: string): Fixture[] {
+    const f = this.state.calendar.fixtures[fixtureId];
+    if (!f) return [];
+    const copy = new Game(this.db, structuredClone(this.state));
+    if (!f.result) copy.playUserMatch(fixtureId, { home: 0, away: 0, winnerId: f.home });
+    copy.advance(this.date, { stopAtUserMatch: true });
+    const cal = copy.state.calendar;
+    return (cal.competitions[f.competitionId]?.fixtureIds ?? []).map((id) => cal.fixtures[id]!).filter((x) => x && x.id !== fixtureId && x.date === f.date && x.result);
   }
 
   /** Troca dois jogadores de lugar (XI, banco ou reservas). */
@@ -649,6 +740,11 @@ export class Game {
     const morale = outcome === 'win' ? 3 : outcome === 'loss' ? -3 : 0;
     for (const p of this.squad()) this.state.players[p.id]!.morale = clamp(this.state.players[p.id]!.morale + morale, 30, 99);
     this.changed();
+    const mineSide = home ? 0 : 1;
+    const scorers = (r.goals ?? []).filter((g) => g[0] === mineSide && this.state.players[g[2]]).map((g) => `${this.playerName(g[2])} ${g[1]}'`);
+    const name = (id: string) => this.db.clubs.find((c) => c.id === id)?.name ?? id;
+    const label = outcome === 'win' ? '✅ Vitória' : outcome === 'loss' ? '❌ Derrota' : '➖ Empate';
+    this.news(this.state.calendar.date, `${label}: ${name(f.home)} ${r.home} x ${r.away} ${name(f.away)}`, scorers.length ? `Nossos gols: ${scorers.join(', ')}.` : '');
     updateConfidence(this.state.board, objectivesScore(this.state.board.objectives, this.objectiveStatuses()), this.state.finance.balance, this.club().rep);
   }
 
@@ -776,20 +872,27 @@ export class Game {
   // -------------------------------------------------------------------------
 
   /** Força do XI: usuário com a escalação escolhida; IA com a automática. */
-  private strength(clubId: string, date: IsoDate): number {
+  /** Titulares do clube na data: o usuário com a escalação dele, a IA com a automática. */
+  private starters(clubId: string, date: IsoDate): Starter[] {
     const squad = this.squad(clubId);
     const byId = new Map(squad.map((p) => [p.id, p]));
-    const xi = clubId === this.state.userClubId ? this.state.lineup.xi : autoLineup(squad, '4-2-3-1', date).xi;
-    const filled = xi.filter((s) => s.playerId && byId.has(s.playerId));
-    const sum = filled.reduce((s, x) => s + effectiveOvr(byId.get(x.playerId!)!, x.pos) * (0.75 + byId.get(x.playerId!)!.fitness / 400), 0);
-    return sum / 11;
+    const slots = clubId === this.state.userClubId ? this.state.lineup.xi : autoLineup(squad, '4-2-3-1', date).xi;
+    return slots.flatMap((x) => (x.playerId && byId.has(x.playerId) ? [{ p: byId.get(x.playerId)!, pos: x.pos }] : []));
   }
 
-  /** Modelo rápido da v0.4 (Poisson pela diferença de força) até o motor de partida da Fase 4. */
+  private strength(xi: readonly Starter[]): number {
+    return xi.reduce((t, x) => t + effectiveOvr(x.p, x.pos) * (0.75 + x.p.fitness / 400), 0) / 11;
+  }
+
+  /** Modelo rápido dos jogos da IA (Poisson pela diferença de força), calibrado com o motor completo. */
   private readonly play: ResultProvider = (f, { rng, state }) => {
-    const d = (this.strength(f.home, state.date) - this.strength(f.away, state.date)) / 7;
-    // Modelo rápido dos jogos da IA, calibrado com o motor completo (scripts/calibrate.ts e test/match.test.ts).
-    return { home: rng.poisson(clamp(1.42 + d * 0.48, 0.15, 3.6)), away: rng.poisson(clamp(1.08 - d * 0.48, 0.12, 3.3)) };
+    const xis = [this.starters(f.home, state.date), this.starters(f.away, state.date)];
+    const d = (this.strength(xis[0]!) - this.strength(xis[1]!)) / 7;
+    // Calibração: scripts/calibrate.ts e test/match.test.ts.
+    const home = rng.poisson(clamp(1.42 + d * 0.48, 0.15, 3.6));
+    const away = rng.poisson(clamp(1.08 - d * 0.48, 0.12, 3.3));
+    // Autores e minutos vêm depois do placar, no mesmo fluxo: o placar não muda.
+    return { home, away, goals: quickGoals(xis, [home, away], rng) };
   };
 
   private news(date: IsoDate, title: string, body = ''): void {
@@ -822,6 +925,7 @@ export class Game {
         const comp = cal.competitions[e.competitionId]!;
         const champion = this.db.clubs.find((c) => c.id === e.championId)?.name ?? '—';
         if (comp.participants.includes(this.state.userClubId) || comp.format === 'league') this.news(e.date, `${comp.name} ${comp.seasonKey}: campeão ${champion}`);
+        if (comp.format === 'league') this.leagueAwards(comp.id, e.date);
         if (comp.format === 'league' && comp.participants.includes(this.state.userClubId)) this.seasonReview(comp.id, e.date);
         return;
       }
@@ -857,6 +961,45 @@ export class Game {
       developMonth(p, { appsThisSeason: p.appsThisSeason, monthsIntoSeason: months });
     }
     this.changed();
+  }
+
+  /** Prêmios da liga encerrada: craque, artilheiro, garçom e revelação (até 21 anos). */
+  private leagueAwards(competitionId: string, date: IsoDate): void {
+    const comp = this.state.calendar.competitions[competitionId]!;
+    const stats = this.competitionStats(competitionId);
+    if (!stats.length) return;
+    const value = (x: PlayerStat) => x.goals + x.assists * 0.7 + (this.state.players[x.playerId]?.ovr ?? 50) / 25;
+    const best = (list: PlayerStat[]) => [...list].sort((a, b) => value(b) - value(a) || a.playerId.localeCompare(b.playerId))[0];
+    const club = (id: string) => this.db.clubs.find((c) => c.id === id)?.name ?? id;
+    const top = stats[0]!;
+    const assists = [...stats].sort((a, b) => b.assists - a.assists || b.goals - a.goals)[0]!;
+    const craque = best(stats)!;
+    const young = best(stats.filter((x) => (this.state.players[x.playerId]?.age ?? 99) <= 21));
+    const parts = [
+      `Craque: ${this.playerName(craque.playerId)} (${club(craque.clubId)})`,
+      `Artilheiro: ${this.playerName(top.playerId)}, ${top.goals} gols`,
+      `Garçom: ${this.playerName(assists.playerId)}, ${assists.assists} assistências`,
+    ];
+    if (young) parts.push(`Revelação: ${this.playerName(young.playerId)} (${club(young.clubId)})`);
+    this.news(date, `🏅 Prêmios da ${comp.name} ${comp.seasonKey}`, `${parts.join(' • ')}.`);
+  }
+
+  /** Lesões em campo: o motor decide quem e quando; a gravidade tem fluxo próprio. */
+  private matchInjuries(fixtureId: string, tl: MatchTimeline): void {
+    let any = false;
+    for (const e of tl.events) {
+      const p = e.type === 'injury' && e.player ? this.state.players[e.player] : undefined;
+      if (!p) continue;
+      const rng = createRng(this.state.seed).derive(`match-injury:${fixtureId}:${e.player}`);
+      const [name, min, max] = pickWeighted(INJURIES, (x) => MATCH_INJURY_WEIGHTS[INJURIES.indexOf(x)] ?? 1, rng);
+      const days = rng.int(min, max);
+      p.injuredUntil = addDays(this.date, days);
+      any = true;
+      if (p.clubId === this.state.userClubId) this.news(this.date, `🚑 ${this.playerName(e.player!)} se machucou em campo`, `${name} • ${days} dias fora.`);
+    }
+    if (!any) return;
+    this.changed();
+    this.reconcile(this.date);
   }
 
   private injuries(date: IsoDate): void {

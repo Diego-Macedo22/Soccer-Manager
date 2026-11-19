@@ -1,5 +1,5 @@
 /** Mensagens entre a interface e o Worker que roda a carreira. */
-import type { MatchChange, MatchInput, MatchTimeline, NewsItem, Position } from '@sm/core';
+import type { MatchChange, MatchInput, MatchTimeline, NewsItem, Position, StandingRow } from '@sm/core';
 
 export type Command =
   | { type: 'init' }
@@ -147,6 +147,16 @@ export interface CompetitionView {
   champion: string | null;
   table: TableRow[];
   userFixtures: FixtureView[];
+  /** Artilharia (top 10), derivada dos resultados. */
+  scorers: { name: string; club: ClubRef; goals: number; assists: number }[];
+}
+
+/** Próximos acontecimentos do painel. */
+export interface UpcomingItem {
+  date: string;
+  days: number;
+  title: string;
+  detail: string;
 }
 
 export interface View {
@@ -158,6 +168,7 @@ export interface View {
   standing: { competition: string; pos: number; points: number } | null;
   results: FixtureView[];
   news: NewsItem[];
+  upcoming: UpcomingItem[];
   squad: PlayerView[];
   lineup: { formation: string; xi: { pos: Position; x: number; y: number; playerId: string | null }[]; bench: string[]; reserves: string[] };
   formations: string[];
@@ -180,4 +191,15 @@ export interface LiveMatchView {
   timeline: MatchTimeline;
   names: Record<string, string>;
   changes: MatchChange[];
+  /** Os outros jogos do dia. */
+  day: LiveRoundView;
+}
+
+/** Rodada ao vivo: já decidida no Worker; a tela revela os gols no minuto certo. */
+export interface LiveRoundView {
+  /** Outros jogos da competição no mesmo dia: placar final e minuto de cada gol (0 = mandante). */
+  games: { home: ClubRef; away: ClubRef; final: [number, number]; goals: [0 | 1, number][] }[];
+  /** Classificação antes da rodada (só ligas); a tela soma os placares parciais. */
+  table: StandingRow[] | null;
+  clubs: Record<string, ClubRef>;
 }
